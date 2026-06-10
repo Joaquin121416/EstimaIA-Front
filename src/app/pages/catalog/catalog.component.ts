@@ -9,10 +9,10 @@ const DEVELOPERS = [
   { id:2, nombre:"Carlos Mendoza", email:"c.mendoza@consultora.pe", seniority:"mid", tecnologias:["node","postgresql","rest"], disponibilidad_pct:100, activo:true },
   { id:3, nombre:"Lucia Torres", email:"l.torres@consultora.pe", seniority:"mid", tecnologias:["react","typescript","tailwind"], disponibilidad_pct:75, activo:true },
   { id:4, nombre:"Jorge Ramos", email:"j.ramos@consultora.pe", seniority:"senior", tecnologias:["fastapi","python","docker"], disponibilidad_pct:60, activo:true },
-  { id:5, nombre:"María Paz Flores", email:"m.paz@consultora.pe", seniority:"junior", tecnologias:["react","javascript"], disponibilidad_pct:100, activo:true },
+  { id:5, nombre:"Maria Paz Flores", email:"m.paz@consultora.pe", seniority:"junior", tecnologias:["react","javascript"], disponibilidad_pct:100, activo:true },
   { id:6, nombre:"Diego Paredes", email:"d.paredes@consultora.pe", seniority:"mid", tecnologias:["angular","typescript","net"], disponibilidad_pct:80, activo:true },
   { id:7, nombre:"Valeria Rios", email:"v.rios@consultora.pe", seniority:"senior", tecnologias:["react_native","react","firebase"], disponibilidad_pct:70, activo:true },
-  { id:8, nombre:"Andrés Castillo", email:"a.castillo@consultora.pe", seniority:"mid", tecnologias:["node","fastapi","docker"], disponibilidad_pct:90, activo:true },
+  { id:8, nombre:"Andres Castillo", email:"a.castillo@consultora.pe", seniority:"mid", tecnologias:["node","fastapi","docker"], disponibilidad_pct:90, activo:true },
   { id:9, nombre:"Camila Vega", email:"c.vega@consultora.pe", seniority:"junior", tecnologias:["vue","javascript","node"], disponibilidad_pct:100, activo:true },
   { id:10, nombre:"Roberto Salas", email:"r.salas@consultora.pe", seniority:"senior", tecnologias:["angular","java","spring"], disponibilidad_pct:50, activo:false },
 ];
@@ -22,12 +22,12 @@ const DEVELOPERS = [
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <h1 class="page-title">Catálogo de Desarrolladores</h1>
-    <p class="page-sub">Gestión de perfiles, competencias y disponibilidad · {{ devs.length }} desarrolladores registrados</p>
+    <h1 class="page-title">Catalogo de Desarrolladores</h1>
+    <p class="page-sub">Gestion de perfiles, competencias y disponibilidad · {{ devs.length }} desarrolladores registrados</p>
 
     <!-- Toolbar -->
     <div class="flex gap-3 mb-5 flex-wrap">
-      <input [(ngModel)]="search" class="input-field flex-1 min-w-48" placeholder="🔍 Buscar por nombre o email..." />
+      <input [(ngModel)]="search" class="input-field flex-1 min-w-48" placeholder="Buscar por nombre o email..." />
       <select [(ngModel)]="filterSeniority" class="input-field w-44">
         <option value="">Todos los seniority</option>
         <option value="senior">Senior</option>
@@ -53,7 +53,7 @@ const DEVELOPERS = [
           <tr>
             <th class="px-4 py-2.5 text-left">Desarrollador</th>
             <th class="px-4 py-2.5 text-left">Seniority</th>
-            <th class="px-4 py-2.5 text-left">Tecnologías</th>
+            <th class="px-4 py-2.5 text-left">Tecnologias</th>
             <th class="px-4 py-2.5 text-left">Disponibilidad</th>
             <th class="px-4 py-2.5 text-left">Estado</th>
             <th class="px-4 py-2.5 text-left">Acciones</th>
@@ -66,7 +66,7 @@ const DEVELOPERS = [
                 <div class="flex items-center gap-2.5">
                   <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs"
                        [style.background]="getColor(dev.id)">
-                    {{ dev.nombre.split(' ').map(n=>n[0]).join('').slice(0,2) }}
+                    {{ getInitials(dev.nombre) }}
                   </div>
                   <div>
                     <p class="font-semibold text-navy">{{ dev.nombre }}</p>
@@ -92,12 +92,13 @@ const DEVELOPERS = [
                   {{ dev.disponibilidad_pct }}%
                 </p>
                 <div class="w-16 bg-gray-100 rounded-full h-1.5 mt-1">
-                  <div class="h-1.5 rounded-full" [class]="dev.disponibilidad_pct >= 70 ? 'bg-emerald-500' : 'bg-amber-400'"
+                  <div class="h-1.5 rounded-full"
+                       [class]="dev.disponibilidad_pct >= 70 ? 'bg-emerald-500' : 'bg-amber-400'"
                        [style.width]="dev.disponibilidad_pct + '%'"></div>
                 </div>
               </td>
               <td class="px-4 py-3">
-                <button (click)="dev.activo = !dev.activo"
+                <button (click)="toggleActivo(dev)"
                   class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                   [class]="dev.activo ? 'bg-emerald-500' : 'bg-gray-300'">
                   <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow"
@@ -119,19 +120,27 @@ const DEVELOPERS = [
   `
 })
 export class CatalogComponent {
-  devs = DEVELOPERS;
+  devs = DEVELOPERS.map(d => ({ ...d }));
   search = '';
   filterSeniority = '';
   filterStatus = '';
 
   filtered = computed(() => {
     return this.devs.filter(d => {
-      const matchSearch = !this.search || d.nombre.toLowerCase().includes(this.search.toLowerCase()) || d.email.toLowerCase().includes(this.search.toLowerCase());
+      const matchSearch = !this.search ||
+        d.nombre.toLowerCase().includes(this.search.toLowerCase()) ||
+        d.email.toLowerCase().includes(this.search.toLowerCase());
       const matchSeniority = !this.filterSeniority || d.seniority === this.filterSeniority;
       const matchStatus = !this.filterStatus || d.activo.toString() === this.filterStatus;
       return matchSearch && matchSeniority && matchStatus;
     });
   });
+
+  toggleActivo(dev: any) { dev.activo = !dev.activo; }
+
+  getInitials(nombre: string): string {
+    return nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  }
 
   getColor(id: number): string {
     const colors = ['#1A5FAD','#059669','#7C3AED','#D97706','#DC2626','#0891B2','#7C3AED','#059669','#6B7280','#9CA3AF'];
