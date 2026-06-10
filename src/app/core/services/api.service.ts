@@ -9,7 +9,7 @@ import {
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private base = 'https://web-production-69779.up.railway.app';
+  private base = 'https://web-production-9290c.up.railway.app';
 
   constructor(private http: HttpClient) {}
 
