@@ -6,10 +6,15 @@ import { EstimateComponent } from './pages/estimate/estimate.component';
 import { ResultsComponent } from './pages/results/results.component';
 import { ProfileComponent } from './pages/profile/profile.component';
 import { CatalogComponent } from './pages/catalog/catalog.component';
+import { LoginComponent } from './pages/login/login.component';
+import { UsersComponent } from './pages/users/users.component';
+import { authGuard, adminGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
+  { path: 'login', component: LoginComponent },
   {
     path: '', component: ShellComponent,
+    canActivate: [authGuard],
     children: [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       { path: 'dashboard', component: DashboardComponent },
@@ -17,7 +22,8 @@ export const routes: Routes = [
       { path: 'results',   component: ResultsComponent },
       { path: 'profile/:id', component: ProfileComponent },
       { path: 'catalog',   component: CatalogComponent },
+      { path: 'users', component: UsersComponent, canActivate: [adminGuard] },
     ]
   },
-  { path: '**', redirectTo: 'dashboard' }
+  { path: '**', redirectTo: 'login' }
 ];
