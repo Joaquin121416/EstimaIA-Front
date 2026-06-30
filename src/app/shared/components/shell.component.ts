@@ -57,6 +57,11 @@ import { AuthService } from '../../core/services/auth.service';
         @if (auth.isAdmin()) {
           <a routerLink="/users" routerLinkActive="bg-blue-50 text-brand font-semibold border-r-2 border-brand"
              class="flex items-center gap-2.5 px-5 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors">🔐 Usuarios y Roles</a>
+          <a routerLink="/sincerar"
+            routerLinkActive="bg-white/20 text-white font-semibold"
+            class="text-white/65 text-sm px-3 py-1.5 rounded-md hover:bg-white/10 transition-colors">
+            Sinceración
+          </a>
         }
       </aside>
 
