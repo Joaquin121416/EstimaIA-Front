@@ -56,7 +56,7 @@ import { AuthService } from '../../core/services/auth.service';
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Usuario de prueba</p>
             <button (click)="fillDemo()" class="w-full text-left text-xs bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg px-3 py-2">
               <span class="badge-blue mr-2">Admin</span>
-              <span class="text-gray-600">joaquin@consultora.pe</span>
+              <span class="text-gray-600">joaquin&#64;consultora.pe</span>
             </button>
           </div>
         </div>
