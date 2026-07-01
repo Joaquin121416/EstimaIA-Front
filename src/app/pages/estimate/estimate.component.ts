@@ -174,7 +174,17 @@ export class EstimateComponent {
     });
   }
 
-  reset() {
-    this.form = { nombre: '', tipo_sistema: '', tecnologia_principal: '', num_modulos: 0, complejidad: 3, tamano_equipo_previsto: 0 };
-  }
+  
+reset() {
+  this.form = {
+    nombre: '',
+    empresa: 'ELDO',   // ✅ AGREGAR ESTO
+    tipo_sistema: '',
+    tecnologia_principal: '',
+    num_modulos: 0,
+    complejidad: 3,
+    tamano_equipo_previsto: 0
+  };
+}
+
 }
