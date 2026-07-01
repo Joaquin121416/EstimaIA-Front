@@ -2,6 +2,7 @@
 
 export interface ProjectInput {
   nombre: string;
+  empresa: string;
   tipo_sistema: string;
   tecnologia_principal: string;
   num_modulos: number;

@@ -135,10 +135,17 @@ import { ProjectInput } from '../../core/models/estimate.model';
   `
 })
 export class EstimateComponent {
+  
   form: ProjectInput = {
-    nombre: '', tipo_sistema: '', tecnologia_principal: '',
-    num_modulos: 0, complejidad: 3, tamano_equipo_previsto: 0
+    nombre: '',
+    empresa: 'ELDO',   // ✅ AGREGAR (puedes dejar default)
+    tipo_sistema: '',
+    tecnologia_principal: '',
+    num_modulos: 0,
+    complejidad: 3,
+    tamano_equipo_previsto: 0
   };
+
   showAdvanced = false;
   loading = signal(false);
   error = signal('');
