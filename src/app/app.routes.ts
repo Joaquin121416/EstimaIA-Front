@@ -9,6 +9,7 @@ import { CatalogComponent } from './pages/catalog/catalog.component';
 import { LoginComponent } from './pages/login/login.component';
 import { UsersComponent } from './pages/users/users.component';
 import { authGuard, adminGuard } from './core/guards/auth.guard';
+import { SincerarComponent } from './pages/sincerar/sincerar.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -23,6 +24,7 @@ export const routes: Routes = [
       { path: 'profile/:id', component: ProfileComponent },
       { path: 'catalog',   component: CatalogComponent },
       { path: 'users', component: UsersComponent, canActivate: [adminGuard] },
+      { path: 'sincerar', component: SincerarComponent, canActivate: [adminGuard]}
     ]
   },
   { path: '**', redirectTo: 'login' }
