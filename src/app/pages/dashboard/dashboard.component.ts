@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { StateService } from '../../core/services/state.service';
+import { AuthService } from '../../core/services/auth.service';
 import { HealthResponse } from '../../core/models/estimate.model';
 
 @Component({
@@ -12,9 +13,11 @@ import { HealthResponse } from '../../core/models/estimate.model';
   imports: [CommonModule, RouterLink],
   template: `
     <h1 class="page-title">Dashboard</h1>
-    <p class="page-sub">Bienvenido, Project Manager — EstimaIA v1.0</p>
+    <p class="page-sub">Bienvenido, {{ auth.isAdmin() ? 'Administrador' : 'Project Manager' }} — EstimaIA v1.0</p>
 
-    <!-- KPIs -->
+    <!-- KPIs del modelo ML: informacion de gobierno del modelo -> SOLO ADMIN -->
+    @if (auth.isAdmin()) {
+    <p class="section-title">Estado del modelo</p>
     <div class="grid grid-cols-3 gap-4 mb-7">
       <div class="card p-5">
         <p class="text-xs text-gray-500 font-medium mb-1">Proyectos históricos</p>
@@ -32,6 +35,24 @@ import { HealthResponse } from '../../core/models/estimate.model';
         <p class="text-xs text-amber-600 font-semibold mt-1">⚠ Meta: ≥ 0.80</p>
       </div>
     </div>
+
+    <!-- Accesos de administracion -->
+    <p class="section-title">Administración</p>
+    <div class="grid grid-cols-2 gap-4 mb-7">
+      <a routerLink="/sincerar" class="card p-5 border-t-4 border-purple-500 hover:shadow-md transition-shadow cursor-pointer block">
+        <div class="text-3xl mb-2">🔄</div>
+        <p class="font-bold text-navy mb-1">Sinceración y Reentrenamiento</p>
+        <p class="text-xs text-gray-500">Carga el esfuerzo real de los proyectos y reentrena el modelo ML.</p>
+        <span class="mt-3 inline-block text-xs font-semibold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">Gestionar →</span>
+      </a>
+      <a routerLink="/users" class="card p-5 border-t-4 border-amber-500 hover:shadow-md transition-shadow cursor-pointer block">
+        <div class="text-3xl mb-2">🔐</div>
+        <p class="font-bold text-navy mb-1">Gestión de Usuarios</p>
+        <p class="text-xs text-gray-500">Administra roles y accesos de los usuarios del sistema.</p>
+        <span class="mt-3 inline-block text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">Administrar →</span>
+      </a>
+    </div>
+    }
 
     <!-- Acciones -->
     <p class="section-title">Acciones principales</p>
@@ -93,7 +114,7 @@ import { HealthResponse } from '../../core/models/estimate.model';
 })
 export class DashboardComponent implements OnInit {
   health = signal<HealthResponse | null>(null);
-  constructor(private api: ApiService, public state: StateService) {}
+  constructor(private api: ApiService, public state: StateService, public auth: AuthService) {}
 
   ngOnInit() {
     this.api.health().subscribe({ next: h => this.health.set(h), error: () => {} });
