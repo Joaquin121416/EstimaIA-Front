@@ -12,7 +12,7 @@ import { ProjectInput } from '../../core/models/estimate.model';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="max-w-2xl">
+    <div class="max-w-3xl">
       <h1 class="page-title">Nueva Estimación de Esfuerzo</h1>
       <p class="page-sub">Ingresa los parámetros del proyecto para obtener una predicción basada en Machine Learning</p>
 
@@ -85,6 +85,104 @@ import { ProjectInput } from '../../core/models/estimate.model';
             </div>
           </div>
 
+          <!-- Factores del proyecto -->
+          <div class="col-span-2 border-t border-gray-100 pt-4">
+            <button (click)="showFactores = !showFactores" class="text-xs font-semibold text-brand flex items-center gap-1">
+              {{ showFactores ? '▲' : '▼' }} Factores del proyecto (opcional, mejoran la precisión)
+            </button>
+            <p class="text-xs text-gray-400 mt-1">Ajustan la predicción del modelo. Los que dejes vacíos no la modifican.</p>
+          </div>
+
+          @if (showFactores) {
+            @for (r of ratings; track r.key) {
+              <div class="col-span-2">
+                <label class="label">{{ r.label }}</label>
+                <div class="flex gap-2">
+                  @for (n of [1,2,3,4,5]; track n) {
+                    <button type="button" (click)="toggleRating(r.key, n)" class="flex-1 py-1.5 rounded-lg border-2 transition-colors text-center"
+                      [class]="form[r.key] === n ? 'border-brand bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'">
+                      <p class="font-bold text-sm" [class]="form[r.key] === n ? 'text-brand' : 'text-gray-700'">{{n}}</p>
+                      <p class="text-[11px]" [class]="form[r.key] === n ? 'text-brand' : 'text-gray-400'">{{ niveles[n-1] }}</p>
+                    </button>
+                  }
+                </div>
+                <p class="text-xs text-gray-400 mt-1">{{ r.hint }}</p>
+              </div>
+            }
+
+            <div>
+              <label class="label">Metodología</label>
+              <select [(ngModel)]="form.metodologia" class="input-field">
+                <option [ngValue]="undefined">Sin especificar</option>
+                <option value="scrum">Scrum</option>
+                <option value="kanban">Kanban</option>
+                <option value="hibrido">Híbrida</option>
+                <option value="cascada">Cascada</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Requisitos de seguridad</label>
+              <select [(ngModel)]="form.nivel_seguridad" class="input-field">
+                <option [ngValue]="undefined">Sin especificar</option>
+                <option value="bajo">Bajos (app interna)</option>
+                <option value="medio">Medios (datos personales)</option>
+                <option value="alto">Altos (pagos, salud, banca)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Integraciones externas</label>
+              <input [(ngModel)]="form.num_integraciones" type="number" min="0" max="20" class="input-field" placeholder="Ej: 2 (pasarela de pago, ERP)" />
+            </div>
+
+            <div>
+              <label class="label">Plataformas destino</label>
+              <input [(ngModel)]="form.plataformas_destino" type="number" min="1" max="5" class="input-field" placeholder="Ej: 2 (web + Android)" />
+            </div>
+
+            <div>
+              <label class="label">Reutilización de código (%)</label>
+              <input [(ngModel)]="form.reutilizacion_pct" type="number" min="0" max="80" class="input-field" placeholder="Ej: 20" />
+            </div>
+
+            <div>
+              <label class="label">Dedicación del equipo (%)</label>
+              <input [(ngModel)]="form.disponibilidad_equipo_pct" type="number" min="25" max="100" class="input-field" placeholder="100 = tiempo completo" />
+            </div>
+
+            <div>
+              <label class="label">Documentación requerida</label>
+              <select [(ngModel)]="form.documentacion" class="input-field">
+                <option [ngValue]="undefined">Sin especificar</option>
+                <option value="basica">Básica</option>
+                <option value="estandar">Estándar</option>
+                <option value="exhaustiva">Exhaustiva</option>
+              </select>
+            </div>
+
+            <div class="flex items-end pb-2">
+              <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+                <input type="checkbox" [(ngModel)]="form.pruebas_automatizadas" class="w-4 h-4 accent-brand" />
+                Incluye pruebas automatizadas
+              </label>
+            </div>
+          }
+
+          <!-- Cronograma -->
+          <div class="col-span-2 border-t border-gray-100 pt-4">
+            <p class="text-xs font-semibold text-brand">📅 Cronograma (Gantt)</p>
+          </div>
+          <div>
+            <label class="label">Fecha de inicio</label>
+            <input [(ngModel)]="form.fecha_inicio" type="date" class="input-field" />
+            <p class="text-xs text-gray-400 mt-1">Por defecto, hoy</p>
+          </div>
+          <div>
+            <label class="label">Nombres de los módulos</label>
+            <textarea [(ngModel)]="modulosTexto" rows="3" class="input-field" placeholder="Uno por línea: Login, Carrito, Pagos..."></textarea>
+          </div>
+
           <!-- Opcionales -->
           <div class="col-span-2">
             <button (click)="showAdvanced = !showAdvanced" class="text-xs font-semibold text-brand flex items-center gap-1">
@@ -147,6 +245,13 @@ export class EstimateComponent {
   };
 
   showAdvanced = false;
+  showFactores = true;
+  modulosTexto = '';
+  niveles = ['Muy baja', 'Baja', 'Media', 'Alta', 'Muy alta'];
+  ratings: { key: 'experiencia_equipo' | 'claridad_requisitos'; label: string; hint: string }[] = [
+    { key: 'experiencia_equipo', label: 'Experiencia del equipo en la tecnología', hint: 'Más experiencia = menos horas' },
+    { key: 'claridad_requisitos', label: 'Claridad de los requisitos', hint: 'Requisitos difusos generan retrabajo' },
+  ];
   loading = signal(false);
   error = signal('');
 
@@ -157,12 +262,28 @@ export class EstimateComponent {
       && this.form.num_modulos > 0 && this.form.complejidad > 0 && this.form.tamano_equipo_previsto > 0);
   }
 
+  toggleRating(key: 'experiencia_equipo' | 'claridad_requisitos', n: number) {
+    this.form[key] = this.form[key] === n ? undefined : n;
+  }
+
+  /** Quita los campos vacíos para que el backend use sus valores por defecto. */
+  private buildPayload(): ProjectInput {
+    const payload: any = {};
+    for (const [k, v] of Object.entries(this.form)) {
+      if (v !== null && v !== undefined && v !== '') payload[k] = v;
+    }
+    const nombres = this.modulosTexto.split(/\r?\n|,/).map(m => m.trim()).filter(m => m);
+    if (nombres.length) payload.nombres_modulos = nombres;
+    return payload as ProjectInput;
+  }
+
   submit() {
     this.loading.set(true);
     this.error.set('');
-    this.api.estimate(this.form).subscribe({
+    const payload = this.buildPayload();
+    this.api.estimate(payload).subscribe({
       next: result => {
-        this.state.lastInput.set({ ...this.form });
+        this.state.lastInput.set(payload);
         this.state.lastResult.set(result);
         this.loading.set(false);
         this.router.navigate(['/results']);
@@ -185,6 +306,7 @@ reset() {
     complejidad: 3,
     tamano_equipo_previsto: 0
   };
+  this.modulosTexto = '';
 }
 
 }

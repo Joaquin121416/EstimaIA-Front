@@ -12,6 +12,63 @@ export interface ProjectInput {
   num_tareas?: number;
   presupuesto_maximo_soles?: number;
   deadline_semanas?: number;
+  // Variables de ajuste (opcionales)
+  experiencia_equipo?: number;          // 1..5
+  claridad_requisitos?: number;         // 1..5
+  metodologia?: 'scrum' | 'kanban' | 'hibrido' | 'cascada';
+  num_integraciones?: number;
+  nivel_seguridad?: 'bajo' | 'medio' | 'alto';
+  reutilizacion_pct?: number;           // 0..80
+  documentacion?: 'basica' | 'estandar' | 'exhaustiva';
+  pruebas_automatizadas?: boolean;
+  plataformas_destino?: number;         // 1..5
+  disponibilidad_equipo_pct?: number;   // 25..100
+  // Cronograma
+  fecha_inicio?: string;                // YYYY-MM-DD
+  nombres_modulos?: string[];
+}
+
+export interface AjusteVariable {
+  variable: string;
+  valor: string;
+  factor: number;
+  impacto_pct: number;
+  impacto_horas: number;
+}
+
+export interface GanttTarea {
+  id: string;
+  nombre: string;
+  fase: string;
+  tipo: 'tarea' | 'hito';
+  horas: number;
+  personas: number;
+  rol: string;
+  dependencias: string[];
+  inicio: string;
+  fin: string;
+  dia_inicio: number;
+  duracion_dias: number;
+  holgura_dias: number;
+  critica: boolean;
+}
+
+export interface GanttFase {
+  nombre: string;
+  inicio: string;
+  fin: string;
+  horas: number;
+}
+
+export interface GanttOutput {
+  fecha_inicio: string;
+  fecha_fin: string;
+  dias_habiles: number;
+  dias_calendario: number;
+  carriles_desarrollo: number;
+  fases: GanttFase[];
+  tareas: GanttTarea[];
+  ruta_critica: string[];
 }
 
 export interface ShapVariable {
@@ -55,6 +112,11 @@ export interface EstimacionOutput {
   shap_top3: ShapVariable[];
   proyectos_referencia: ProyectoReferencia[];
   confidence_score: ConfidenceDetail;
+  proyecto_id?: number;
+  esfuerzo_base_modelo?: number;
+  factor_ajuste_total?: number;
+  ajustes?: AjusteVariable[];
+  gantt?: GanttOutput;
 }
 
 export interface TeamInput {

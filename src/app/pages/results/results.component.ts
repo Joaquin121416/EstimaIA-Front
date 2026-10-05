@@ -5,11 +5,12 @@ import { Router, RouterLink } from '@angular/router';
 import { StateService } from '../../core/services/state.service';
 import { ApiService } from '../../core/services/api.service';
 import { EstimacionOutput, TeamOutput } from '../../core/models/estimate.model';
+import { GanttChartComponent } from '../../shared/components/gantt-chart.component';
 
 @Component({
   selector: 'app-results',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, GanttChartComponent],
   template: `
     @if (!result) {
       <div class="text-center py-20 text-gray-400">
@@ -18,7 +19,7 @@ import { EstimacionOutput, TeamOutput } from '../../core/models/estimate.model';
         <a routerLink="/estimate" class="btn-primary mt-4 inline-block text-sm">Crear nueva estimación</a>
       </div>
     } @else {
-      <div class="max-w-4xl">
+      <div class="max-w-6xl">
         <h1 class="page-title">Resultados — {{ state.lastInput()?.nombre }}</h1>
         <p class="page-sub">{{ state.lastInput()?.tecnologia_principal }} · {{ state.lastInput()?.num_modulos }} módulos · Complejidad {{ state.lastInput()?.complejidad }}</p>
 
@@ -81,6 +82,47 @@ import { EstimacionOutput, TeamOutput } from '../../core/models/estimate.model';
             </div>
           </div>
         </div>
+
+        <!-- AJUSTES POR VARIABLES DEL PROYECTO -->
+        @if (result.ajustes?.length) {
+          <div class="card p-5 mb-5">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+              <p class="section-title !mb-0">⚙️ Ajuste por factores del proyecto</p>
+              <p class="text-sm text-gray-500">
+                Modelo: <span class="font-semibold text-navy">{{ result.esfuerzo_base_modelo }} h</span>
+                × factor <span class="font-semibold text-navy">{{ result.factor_ajuste_total }}</span>
+                = <span class="font-bold text-brand">{{ result.esfuerzo_horas }} h</span>
+              </p>
+            </div>
+            <div class="grid grid-cols-2 gap-x-8 gap-y-2">
+              @for (a of result.ajustes; track a.variable) {
+                <div class="flex items-center gap-3 text-sm">
+                  <span class="text-gray-600 w-44 shrink-0 truncate">{{ a.variable }} <span class="text-gray-400">({{ a.valor }})</span></span>
+                  <div class="flex-1 flex items-center h-2.5">
+                    <div class="w-1/2 flex justify-end">
+                      @if (a.impacto_pct < 0) { <div class="h-2.5 rounded-l-full bg-emerald-500" [style.width]="barra(a.impacto_pct)"></div> }
+                    </div>
+                    <div class="w-px h-4 bg-gray-300"></div>
+                    <div class="w-1/2">
+                      @if (a.impacto_pct > 0) { <div class="h-2.5 rounded-r-full bg-amber-500" [style.width]="barra(a.impacto_pct)"></div> }
+                    </div>
+                  </div>
+                  <span class="w-20 text-right font-semibold" [class]="a.impacto_pct > 0 ? 'text-amber-600' : a.impacto_pct < 0 ? 'text-emerald-600' : 'text-gray-400'">
+                    {{ a.impacto_horas > 0 ? '+' : '' }}{{ a.impacto_horas }} h
+                  </span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- GANTT -->
+        @if (result.gantt) {
+          <div class="card mb-5 overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100 font-bold text-sm text-gray-700">📅 Cronograma del proyecto (Gantt)</div>
+            <app-gantt-chart [gantt]="result.gantt" />
+          </div>
+        }
 
         <!-- PROYECTOS REFERENCIA -->
         <div class="card mb-5">
@@ -211,6 +253,11 @@ export class ResultsComponent implements OnInit {
       next: t => { this.team.set(t); this.state.lastTeam.set(t); this.loadingTeam.set(false); },
       error: () => this.loadingTeam.set(false)
     });
+  }
+
+  /** Ancho de barra para un impacto en %, escala hasta ±30%. */
+  barra(pct: number) {
+    return Math.min(Math.abs(pct) / 30 * 100, 100) + '%';
   }
 
   getScoreColor(s: number) {
