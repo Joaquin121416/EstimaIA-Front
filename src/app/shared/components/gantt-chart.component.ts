@@ -2,6 +2,7 @@
 import { Component, Input, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GanttOutput, GanttTarea } from '../../core/models/estimate.model';
+import { descargarExcelGantt } from '../utils/gantt-excel';
 
 interface FilaFase {
   nombre: string;
@@ -55,7 +56,10 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
           <button type="button" (click)="setZoom('semana')" class="px-2.5 py-1"
             [class]="zoom === 'semana' ? 'bg-brand text-white' : 'bg-white text-gray-600'">Semanas</button>
         </div>
-        <button type="button" (click)="exportarCsv()" class="btn-secondary text-xs !px-2.5 !py-1">⬇ CSV</button>
+        <button type="button" (click)="exportarExcel()" class="btn-primary text-xs !px-2.5 !py-1"
+          title="Descarga el cronograma con el diagrama de Gantt en colores">⬇ Excel</button>
+        <button type="button" (click)="exportarCsv()" class="btn-secondary text-xs !px-2.5 !py-1"
+          title="Solo datos, separados por punto y coma">⬇ CSV</button>
       </div>
     </div>
 
@@ -155,6 +159,8 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 })
 export class GanttChartComponent implements OnChanges {
   @Input({ required: true }) gantt!: GanttOutput;
+  /** Nombre del proyecto, se usa en el titulo y el nombre del Excel. */
+  @Input() proyecto?: string;
 
   readonly ANCHO_IZQ = 460;
   zoom: 'dia' | 'semana' = 'semana';
@@ -285,6 +291,10 @@ export class GanttChartComponent implements OnChanges {
     if (t.dependencias.length) partes.push(`Depende de: ${t.dependencias.join(', ')}`);
     partes.push(t.critica ? 'En la ruta crítica' : `Holgura: ${t.holgura_dias} días`);
     return partes.join('\n');
+  }
+
+  exportarExcel() {
+    descargarExcelGantt(this.gantt, { proyecto: this.proyecto, resaltarCritica: this.resaltarCritica });
   }
 
   exportarCsv() {

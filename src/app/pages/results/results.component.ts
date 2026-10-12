@@ -120,7 +120,7 @@ import { GanttChartComponent } from '../../shared/components/gantt-chart.compone
         @if (result.gantt) {
           <div class="card mb-5 overflow-hidden">
             <div class="px-5 py-3 border-b border-gray-100 font-bold text-sm text-gray-700">📅 Cronograma del proyecto (Gantt)</div>
-            <app-gantt-chart [gantt]="result.gantt" />
+            <app-gantt-chart [gantt]="result.gantt" [proyecto]="state.lastInput()?.nombre" />
           </div>
         }
 
