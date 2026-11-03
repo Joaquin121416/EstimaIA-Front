@@ -1,9 +1,10 @@
 // src/app/pages/catalog/catalog.component.ts
-import { Component } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { COLABORADORES, ROLES, rolBadge, rolInfo } from '../../core/data/colaboradores';
+import { Colaborador, ColaboradorInput, ROLES, rolBadge, rolInfo } from '../../core/data/colaboradores';
+import { ColaboradoresService } from '../../core/services/colaboradores.service';
 import { Rol } from '../../core/models/estimate.model';
 
 @Component({
@@ -50,8 +51,12 @@ import { Rol } from '../../core/models/estimate.model';
         <option value="true">Activos</option>
         <option value="false">Inactivos</option>
       </select>
-      <button class="btn-primary text-sm whitespace-nowrap">+ Nuevo colaborador</button>
+      <button (click)="abrirNuevo()" class="btn-primary text-sm whitespace-nowrap">+ Nuevo colaborador</button>
     </div>
+
+    @if (error()) {
+      <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">⚠ {{ error() }}</div>
+    }
 
     <!-- Table -->
     <div class="card overflow-hidden">
@@ -73,6 +78,9 @@ import { Rol } from '../../core/models/estimate.model';
           </tr>
         </thead>
         <tbody>
+          @if (loading()) {
+            <tr><td colspan="8" class="px-4 py-10 text-center text-gray-400">Cargando colaboradores...</td></tr>
+          }
           @for (dev of filtered; track dev.id) {
             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors" [class.opacity-50]="!dev.activo">
               <td class="px-4 py-3">
@@ -121,8 +129,8 @@ import { Rol } from '../../core/models/estimate.model';
                 <p class="text-[10px] text-gray-400">≈ S/ {{ dev.costo_hora * 160 | number:'1.0-0' }} / mes</p>
               </td>
               <td class="px-4 py-3">
-                <button (click)="toggleActivo(dev)"
-                  class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+                <button (click)="toggleActivo(dev)" [disabled]="guardando()"
+                  class=""relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                   [class]="dev.activo ? 'bg-emerald-500' : 'bg-gray-300'">
                   <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow"
                         [class]="dev.activo ? 'translate-x-4' : 'translate-x-1'"></span>
@@ -132,7 +140,7 @@ import { Rol } from '../../core/models/estimate.model';
                 <div class="flex gap-2">
                   <a [routerLink]="['/profile', dev.id]"
                      class="text-xs font-semibold text-brand bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">Ver</a>
-                  <button class="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded hover:bg-red-100">Editar</button>
+                  <button (click)="abrirEditar(dev)" class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100">Editar</button>
                 </div>
               </td>
             </tr>
@@ -140,10 +148,98 @@ import { Rol } from '../../core/models/estimate.model';
         </tbody>
       </table>
     </div>
+
+    <!-- Modal crear / editar -->
+    @if (form; as f) {
+      <div class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" (click)="cerrar()">
+        <div class="card w-full max-w-2xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+          <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <p class="font-bold text-navy">{{ editandoId ? 'Editar colaborador' : 'Nuevo colaborador' }}</p>
+            <button (click)="cerrar()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+          </div>
+
+          <div class="p-6 grid grid-cols-2 gap-4">
+            <div>
+              <label class="label">Nombre <span class="text-red-500">*</span></label>
+              <input [(ngModel)]="f.nombre" class="input-field" />
+            </div>
+            <div>
+              <label class="label">Email</label>
+              <input [(ngModel)]="f.email" type="email" class="input-field" />
+            </div>
+
+            <div class="col-span-2">
+              <label class="label">Rol <span class="text-red-500">*</span></label>
+              <div class="grid grid-cols-4 gap-2">
+                @for (r of roles; track r.value) {
+                  <button type="button" (click)="f.rol = r.value"
+                    class="border rounded-lg px-3 py-2 text-left text-sm transition-colors"
+                    [class]="f.rol === r.value ? 'border-brand bg-brand-xlight' : 'border-gray-200 hover:bg-gray-50'">
+                    <span class="font-semibold text-navy block">{{ r.label }}</span>
+                    <span class="text-[10px]" [class]="r.tipo === 'end_to_end' ? 'text-brand' : 'text-gray-400'">
+                      {{ r.tipo === 'end_to_end' ? 'End-to-end' : 'Apoyo' }}
+                    </span>
+                  </button>
+                }
+              </div>
+              <p class="text-xs text-gray-400 mt-1">{{ rolInfo(f.rol).descripcion }}</p>
+            </div>
+
+            <div>
+              <label class="label">Seniority</label>
+              <select [(ngModel)]="f.seniority" class="input-field">
+                <option value="junior">Junior</option>
+                <option value="mid">Mid-level</option>
+                <option value="senior">Senior</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Costo por hora (S/.) <span class="text-red-500">*</span></label>
+              <input [(ngModel)]="f.costo_hora" type="number" min="0" step="0.5" class="input-field" />
+              <p class="text-xs text-gray-400 mt-1">≈ S/ {{ (f.costo_hora || 0) * 160 | number:'1.0-0' }} al mes (160 h)</p>
+            </div>
+            <div>
+              <label class="label">Disponibilidad (%)</label>
+              <input [(ngModel)]="f.disponibilidad_pct" type="number" min="0" max="100" class="input-field" />
+            </div>
+            <div>
+              <label class="label">Años de experiencia</label>
+              <input [(ngModel)]="f.experiencia_anos" type="number" min="0" max="50" class="input-field" />
+            </div>
+
+            <div class="col-span-2">
+              <label class="label">Tecnologías / herramientas</label>
+              <input [(ngModel)]="tecnologiasTexto" class="input-field" placeholder="Separadas por coma: react, node, docker" />
+            </div>
+            <div class="col-span-2">
+              <label class="label">Proyectos anteriores</label>
+              <textarea [(ngModel)]="proyectosTexto" rows="3" class="input-field" placeholder="Uno por línea"></textarea>
+            </div>
+            <div class="col-span-2">
+              <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+                <input type="checkbox" [(ngModel)]="f.activo" class="w-4 h-4 accent-brand" />
+                Activo (disponible para recomendar en equipos)
+              </label>
+            </div>
+          </div>
+
+          @if (errorForm()) {
+            <div class="mx-6 mb-4 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">⚠ {{ errorForm() }}</div>
+          }
+
+          <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+            <button (click)="cerrar()" class="btn-secondary text-sm">Cancelar</button>
+            <button (click)="guardar()" [disabled]="!formValido() || guardando()" class="btn-primary text-sm">
+              {{ guardando() ? 'Guardando...' : 'Guardar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `
 })
-export class CatalogComponent {
-  devs = COLABORADORES.map(d => ({ ...d }));
+export class CatalogComponent implements OnInit {
+  devs: Colaborador[] = [];
   roles = ROLES;
   rolBadge = rolBadge;
   rolInfo = rolInfo;
@@ -152,11 +248,33 @@ export class CatalogComponent {
   filterSeniority = '';
   filterStatus = '';
 
+  loading = signal(true);
+  guardando = signal(false);
+  error = signal('');
+  errorForm = signal('');
+
+  // Formulario del modal (null = cerrado)
+  form: ColaboradorInput | null = null;
+  editandoId: number | null = null;
+  tecnologiasTexto = '';
+  proyectosTexto = '';
+
+  constructor(private api: ColaboradoresService) {}
+
+  ngOnInit() { this.cargar(); }
+
+  cargar() {
+    this.loading.set(true);
+    this.api.list().subscribe({
+      next: list => { this.devs = list; this.loading.set(false); },
+      error: err => { this.loading.set(false); this.error.set(this.mensaje(err, 'No se pudo cargar el catálogo')); }
+    });
+  }
+
   get filtered() {
+    const q = this.search.toLowerCase();
     return this.devs.filter(d => {
-      const matchSearch = !this.search ||
-        d.nombre.toLowerCase().includes(this.search.toLowerCase()) ||
-        d.email.toLowerCase().includes(this.search.toLowerCase());
+      const matchSearch = !q || d.nombre.toLowerCase().includes(q) || (d.email ?? '').toLowerCase().includes(q);
       const matchSeniority = !this.filterSeniority || d.seniority === this.filterSeniority;
       const matchStatus = !this.filterStatus || d.activo.toString() === this.filterStatus;
       const matchRol = !this.filterRol || d.rol === this.filterRol;
@@ -167,11 +285,87 @@ export class CatalogComponent {
   countRol(rol: Rol) { return this.devs.filter(d => d.rol === rol).length; }
 
   promedioRol(rol: Rol) {
-    const c = this.devs.filter(d => d.rol === rol).map(d => d.costo_hora);
+    const c = this.devs.filter(d => d.rol === rol && d.activo).map(d => d.costo_hora);
     return c.length ? c.reduce((a, b) => a + b, 0) / c.length : 0;
   }
 
-  toggleActivo(dev: any) { dev.activo = !dev.activo; }
+  toggleActivo(dev: Colaborador) {
+    this.guardando.set(true);
+    this.api.toggleActivo(dev.id).subscribe({
+      next: upd => { this.reemplazar(upd); this.guardando.set(false); },
+      error: err => { this.guardando.set(false); this.error.set(this.mensaje(err, 'No se pudo cambiar el estado')); }
+    });
+  }
+
+  abrirNuevo() {
+    this.editandoId = null;
+    this.form = {
+      nombre: '', email: '', rol: 'dev', seniority: 'mid', tecnologias: [],
+      disponibilidad_pct: 100, experiencia_anos: 0, costo_hora: 0, proyectos: [], activo: true,
+    };
+    this.tecnologiasTexto = '';
+    this.proyectosTexto = '';
+    this.errorForm.set('');
+  }
+
+  abrirEditar(dev: Colaborador) {
+    const { id, ...datos } = dev;
+    this.editandoId = id;
+    this.form = { ...datos, tecnologias: [...dev.tecnologias], proyectos: [...dev.proyectos] };
+    this.tecnologiasTexto = dev.tecnologias.join(', ');
+    this.proyectosTexto = dev.proyectos.join('\n');
+    this.errorForm.set('');
+  }
+
+  cerrar() {
+    if (this.guardando()) return;
+    this.form = null;
+    this.editandoId = null;
+  }
+
+  formValido(): boolean {
+    const f = this.form;
+    return !!f && f.nombre.trim().length >= 2 && f.costo_hora !== null && f.costo_hora >= 0
+      && f.disponibilidad_pct >= 0 && f.disponibilidad_pct <= 100;
+  }
+
+  guardar() {
+    if (!this.form || !this.formValido()) return;
+    const payload: ColaboradorInput = {
+      ...this.form,
+      nombre: this.form.nombre.trim(),
+      email: this.form.email?.trim() || null,
+      costo_hora: Number(this.form.costo_hora),
+      disponibilidad_pct: Number(this.form.disponibilidad_pct),
+      experiencia_anos: Number(this.form.experiencia_anos) || 0,
+      tecnologias: this.tecnologiasTexto.split(',').map(t => t.trim()).filter(t => t),
+      proyectos: this.proyectosTexto.split(/\r?\n/).map(p => p.trim()).filter(p => p),
+    };
+    this.guardando.set(true);
+    this.errorForm.set('');
+    const req = this.editandoId
+      ? this.api.update(this.editandoId, payload)
+      : this.api.create(payload);
+    req.subscribe({
+      next: c => {
+        if (this.editandoId) this.reemplazar(c); else this.devs = [...this.devs, c];
+        this.guardando.set(false);
+        this.cerrar();
+      },
+      error: err => { this.guardando.set(false); this.errorForm.set(this.mensaje(err, 'No se pudo guardar')); }
+    });
+  }
+
+  private reemplazar(c: Colaborador) {
+    this.devs = this.devs.map(d => d.id === c.id ? c : d);
+  }
+
+  private mensaje(err: any, base: string): string {
+    const det = err?.error?.detail;
+    if (typeof det === 'string') return `${base}: ${det}`;
+    if (Array.isArray(det) && det.length) return `${base}: revisa ${det.map((d: any) => d.loc?.slice(-1)[0]).join(', ')}`;
+    return base;
+  }
 
   getInitials(nombre: string): string {
     return nombre.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();

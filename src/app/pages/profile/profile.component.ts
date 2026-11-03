@@ -1,16 +1,19 @@
 // src/app/pages/profile/profile.component.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { COLABORADORES, rolInfo } from '../../core/data/colaboradores';
+import { Colaborador, rolInfo } from '../../core/data/colaboradores';
+import { ColaboradoresService } from '../../core/services/colaboradores.service';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    @if (!dev) {
-      <p class="text-gray-400">Desarrollador no encontrado.</p>
+    @if (loading()) {
+      <p class="text-gray-400">Cargando colaborador...</p>
+    } @else if (!dev) {
+      <p class="text-gray-400">Colaborador no encontrado.</p>
     } @else {
       <div class="max-w-2xl">
         <a routerLink="/results" class="text-sm text-brand hover:underline mb-4 inline-block">volver al equipo</a>
@@ -27,7 +30,7 @@ import { COLABORADORES, rolInfo } from '../../core/data/colaboradores';
                 <span class="text-white/50">· {{ dev.rol === 'dev' ? 'End-to-end' : 'Apoyo' }}</span></p>
               <p class="text-white/50 text-xs mt-0.5">{{ dev.email }}</p>
               <span class="mt-2 inline-block bg-gold text-navy text-xs font-bold px-3 py-0.5 rounded-full">
-                {{ dev.seniority }} - {{ dev.experiencia }} años exp.
+                {{ dev.seniority }} - {{ dev.experiencia_anos }} años exp.
               </span>
             </div>
           </div>
@@ -84,25 +87,24 @@ import { COLABORADORES, rolInfo } from '../../core/data/colaboradores';
           }
         </div>
 
-        <!-- Acciones -->
-        <div class="flex gap-3">
-          <button class="btn-success flex-1">Confirmar en equipo</button>
-          <button class="btn-secondary flex-1">Descartar</button>
-        </div>
       </div>
     }
   `
 })
 export class ProfileComponent implements OnInit {
-  dev: any = null;
+  dev: Colaborador | null = null;
+  loading = signal(true);
   levels = [1, 2, 3];
   rolInfo = rolInfo;
 
-  constructor(private route: ActivatedRoute) {}
+  constructor(private route: ActivatedRoute, private api: ColaboradoresService) {}
 
   ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
-    this.dev = COLABORADORES.find(d => d.id === id) || null;
+    this.api.get(id).subscribe({
+      next: c => { this.dev = c; this.loading.set(false); },
+      error: () => { this.dev = null; this.loading.set(false); }
+    });
   }
 
   getInitials(nombre: string): string {

@@ -1,12 +1,13 @@
 // src/app/pages/estimate/estimate.component.ts
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { StateService } from '../../core/services/state.service';
 import { ProjectInput, Rol } from '../../core/models/estimate.model';
-import { ROLES, tarifaPromedio } from '../../core/data/colaboradores';
+import { ROLES } from '../../core/data/colaboradores';
+import { ColaboradoresService } from '../../core/services/colaboradores.service';
 
 @Component({
   selector: 'app-estimate',
@@ -201,7 +202,7 @@ import { ROLES, tarifaPromedio } from '../../core/data/colaboradores';
                   </span>
                 </label>
                 <input [(ngModel)]="tarifas[r.value]" type="number" min="0" step="0.5" class="input-field"
-                       [placeholder]="'Prom. ' + tarifaPromedio(r.value)" />
+                       [placeholder]="promedios()[r.value] ? 'Prom. ' + promedios()[r.value] : 'Prom. catálogo'" />
               </div>
             }
           </div>
@@ -255,7 +256,7 @@ import { ROLES, tarifaPromedio } from '../../core/data/colaboradores';
     </div>
   `
 })
-export class EstimateComponent {
+export class EstimateComponent implements OnInit {
   
   form: ProjectInput = {
     nombre: '',
@@ -268,7 +269,7 @@ export class EstimateComponent {
   };
 
   roles = ROLES;
-  tarifaPromedio = tarifaPromedio;
+  promedios = signal<Partial<Record<Rol, number>>>({});
   tarifas: Partial<Record<Rol, number | null>> = {};
   showAdvanced = false;
   showFactores = true;
@@ -281,7 +282,13 @@ export class EstimateComponent {
   loading = signal(false);
   error = signal('');
 
-  constructor(private api: ApiService, private state: StateService, private router: Router) {}
+  constructor(private api: ApiService, private state: StateService, private router: Router,
+              private colaboradores: ColaboradoresService) {}
+
+  ngOnInit() {
+    // Placeholder de tarifas: promedio por rol de los colaboradores activos
+    this.colaboradores.tarifasPromedio().subscribe({ next: t => this.promedios.set(t), error: () => {} });
+  }
 
   isValid(): boolean {
     return !!(this.form.nombre && this.form.tipo_sistema && this.form.tecnologia_principal
