@@ -5,7 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { StateService } from '../../core/services/state.service';
-import { ProjectInput } from '../../core/models/estimate.model';
+import { ProjectInput, Rol } from '../../core/models/estimate.model';
+import { ROLES, tarifaPromedio } from '../../core/data/colaboradores';
 
 @Component({
   selector: 'app-estimate',
@@ -183,6 +184,28 @@ import { ProjectInput } from '../../core/models/estimate.model';
             <textarea [(ngModel)]="modulosTexto" rows="3" class="input-field" placeholder="Uno por línea: Login, Carrito, Pagos..."></textarea>
           </div>
 
+          <!-- Costos -->
+          <div class="col-span-2 border-t border-gray-100 pt-4">
+            <p class="text-xs font-semibold text-brand">💰 Costo por hora por rol (S/.)</p>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Los devs ven el proyecto end-to-end; QA, DevOps y Seguridad son de apoyo y solo se costean sus horas.
+              Vacío = promedio del catálogo de colaboradores.
+            </p>
+          </div>
+          <div class="col-span-2 grid grid-cols-4 gap-3">
+            @for (r of roles; track r.value) {
+              <div>
+                <label class="label">{{ r.label }}
+                  <span class="text-[10px] font-normal" [class]="r.tipo === 'end_to_end' ? 'text-brand' : 'text-gray-400'">
+                    {{ r.tipo === 'end_to_end' ? 'end-to-end' : 'apoyo' }}
+                  </span>
+                </label>
+                <input [(ngModel)]="tarifas[r.value]" type="number" min="0" step="0.5" class="input-field"
+                       [placeholder]="'Prom. ' + tarifaPromedio(r.value)" />
+              </div>
+            }
+          </div>
+
           <!-- Opcionales -->
           <div class="col-span-2">
             <button (click)="showAdvanced = !showAdvanced" class="text-xs font-semibold text-brand flex items-center gap-1">
@@ -244,6 +267,9 @@ export class EstimateComponent {
     tamano_equipo_previsto: 0
   };
 
+  roles = ROLES;
+  tarifaPromedio = tarifaPromedio;
+  tarifas: Partial<Record<Rol, number | null>> = {};
   showAdvanced = false;
   showFactores = true;
   modulosTexto = '';
@@ -274,6 +300,11 @@ export class EstimateComponent {
     }
     const nombres = this.modulosTexto.split(/\r?\n|,/).map(m => m.trim()).filter(m => m);
     if (nombres.length) payload.nombres_modulos = nombres;
+    const tarifas: Partial<Record<Rol, number>> = {};
+    for (const [rol, v] of Object.entries(this.tarifas)) {
+      if (v !== null && v !== undefined && (v as any) !== '' && Number(v) > 0) tarifas[rol as Rol] = Number(v);
+    }
+    if (Object.keys(tarifas).length) payload.tarifas_hora = tarifas;
     return payload as ProjectInput;
   }
 
@@ -285,6 +316,7 @@ export class EstimateComponent {
       next: result => {
         this.state.lastInput.set(payload);
         this.state.lastResult.set(result);
+        this.state.lastTeam.set(null);   // el equipo anterior era de otro proyecto
         this.loading.set(false);
         this.router.navigate(['/results']);
       },
@@ -307,6 +339,7 @@ reset() {
     tamano_equipo_previsto: 0
   };
   this.modulosTexto = '';
+  this.tarifas = {};
 }
 
 }

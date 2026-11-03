@@ -1,5 +1,7 @@
 // src/app/core/models/estimate.model.ts
 
+export type Rol = 'dev' | 'qa' | 'devops' | 'seguridad';
+
 export interface ProjectInput {
   nombre: string;
   empresa: string;
@@ -26,6 +28,8 @@ export interface ProjectInput {
   // Cronograma
   fecha_inicio?: string;                // YYYY-MM-DD
   nombres_modulos?: string[];
+  // Costos: S/. por hora por rol (si falta, el backend usa el promedio del catálogo)
+  tarifas_hora?: Partial<Record<Rol, number>>;
 }
 
 export interface AjusteVariable {
@@ -99,6 +103,26 @@ export interface ConfidenceDetail {
   mensaje: string;
 }
 
+export interface CostoRol {
+  rol: Rol;
+  rol_label: string;
+  tipo: 'end_to_end' | 'apoyo';
+  horas: number;
+  pct: number;
+  tarifa_hora: number;
+  costo: number;
+  tarifa_personalizada: boolean;
+}
+
+export interface CostoProyecto {
+  moneda: string;
+  costo_total: number;
+  costo_min: number;
+  costo_max: number;
+  tarifa_promedio_hora: number;
+  por_rol: CostoRol[];
+}
+
 export interface EstimacionOutput {
   esfuerzo_horas: number;
   esfuerzo_min: number;
@@ -117,17 +141,21 @@ export interface EstimacionOutput {
   factor_ajuste_total?: number;
   ajustes?: AjusteVariable[];
   gantt?: GanttOutput;
+  costo?: CostoProyecto;
 }
 
 export interface TeamInput {
   esfuerzo_estimado_horas: number;
   tecnologia_requerida: string;
   duracion_semanas: number;
+  horas_por_rol?: Partial<Record<Rol, number>>;
 }
 
 export interface DeveloperScore {
   id: number;
   nombre: string;
+  rol: Rol;
+  tipo_participacion: 'end_to_end' | 'apoyo';
   seniority: string;
   score_total: number;
   score_skills: number;
@@ -135,11 +163,27 @@ export interface DeveloperScore {
   score_disponibilidad: number;
   tecnologias: string[];
   disponibilidad_pct: number;
+  costo_hora: number;
+  horas_asignadas: number;
+  dedicacion_pct: number;
+  costo: number;
+}
+
+export interface ResumenRol {
+  rol: Rol;
+  rol_label: string;
+  tipo: 'end_to_end' | 'apoyo';
+  personas: number;
+  horas: number;
+  costo: number;
 }
 
 export interface TeamOutput {
   num_devs_recomendados: number;
+  num_colaboradores: number;
   equipo: DeveloperScore[];
+  por_rol: ResumenRol[];
+  costo_total: number;
   cobertura_skills_pct: number;
   balance_carga_desv_pct: number;
 }

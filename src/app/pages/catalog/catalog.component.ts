@@ -1,33 +1,44 @@
 // src/app/pages/catalog/catalog.component.ts
-import { Component, signal, computed } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-
-const DEVELOPERS = [
-  { id:1, nombre:"Ana Quispe", email:"a.quispe@consultora.pe", seniority:"senior", tecnologias:["react","node","postgresql","docker"], disponibilidad_pct:90, activo:true },
-  { id:2, nombre:"Carlos Mendoza", email:"c.mendoza@consultora.pe", seniority:"mid", tecnologias:["node","postgresql","rest"], disponibilidad_pct:100, activo:true },
-  { id:3, nombre:"Lucia Torres", email:"l.torres@consultora.pe", seniority:"mid", tecnologias:["react","typescript","tailwind"], disponibilidad_pct:75, activo:true },
-  { id:4, nombre:"Jorge Ramos", email:"j.ramos@consultora.pe", seniority:"senior", tecnologias:["fastapi","python","docker"], disponibilidad_pct:60, activo:true },
-  { id:5, nombre:"Maria Paz Flores", email:"m.paz@consultora.pe", seniority:"junior", tecnologias:["react","javascript"], disponibilidad_pct:100, activo:true },
-  { id:6, nombre:"Diego Paredes", email:"d.paredes@consultora.pe", seniority:"mid", tecnologias:["angular","typescript","net"], disponibilidad_pct:80, activo:true },
-  { id:7, nombre:"Valeria Rios", email:"v.rios@consultora.pe", seniority:"senior", tecnologias:["react_native","react","firebase"], disponibilidad_pct:70, activo:true },
-  { id:8, nombre:"Andres Castillo", email:"a.castillo@consultora.pe", seniority:"mid", tecnologias:["node","fastapi","docker"], disponibilidad_pct:90, activo:true },
-  { id:9, nombre:"Camila Vega", email:"c.vega@consultora.pe", seniority:"junior", tecnologias:["vue","javascript","node"], disponibilidad_pct:100, activo:true },
-  { id:10, nombre:"Roberto Salas", email:"r.salas@consultora.pe", seniority:"senior", tecnologias:["angular","java","spring"], disponibilidad_pct:50, activo:false },
-];
+import { COLABORADORES, ROLES, rolBadge, rolInfo } from '../../core/data/colaboradores';
+import { Rol } from '../../core/models/estimate.model';
 
 @Component({
   selector: 'app-catalog',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <h1 class="page-title">Catalogo de Desarrolladores</h1>
-    <p class="page-sub">Gestion de perfiles, competencias y disponibilidad · {{ devs.length }} desarrolladores registrados</p>
+    <h1 class="page-title">Catalogo de Colaboradores</h1>
+    <p class="page-sub">Gestion de perfiles, roles, competencias, disponibilidad y costo por hora · {{ devs.length }} colaboradores registrados</p>
+
+    <!-- Resumen por rol -->
+    <div class="grid grid-cols-4 gap-3 mb-5">
+      @for (r of roles; track r.value) {
+        <button (click)="filterRol = filterRol === r.value ? '' : r.value"
+          class="card p-4 text-left transition-shadow hover:shadow-md"
+          [class.ring-2]="filterRol === r.value" [class.ring-brand]="filterRol === r.value">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold px-2 py-0.5 rounded" [class]="rolBadge(r.value)">{{ r.label }}</span>
+            <span class="text-[10px] uppercase tracking-wide" [class]="r.tipo === 'end_to_end' ? 'text-brand font-bold' : 'text-gray-400'">
+              {{ r.tipo === 'end_to_end' ? 'End-to-end' : 'Apoyo' }}
+            </span>
+          </div>
+          <p class="text-2xl font-bold text-navy mt-2">{{ countRol(r.value) }}</p>
+          <p class="text-xs text-gray-400">Prom. S/ {{ promedioRol(r.value) | number:'1.2-2' }} / hora</p>
+        </button>
+      }
+    </div>
 
     <!-- Toolbar -->
     <div class="flex gap-3 mb-5 flex-wrap">
       <input [(ngModel)]="search" class="input-field flex-1 min-w-48" placeholder="Buscar por nombre o email..." />
+      <select [(ngModel)]="filterRol" class="input-field w-40">
+        <option value="">Todos los roles</option>
+        @for (r of roles; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+      </select>
       <select [(ngModel)]="filterSeniority" class="input-field w-44">
         <option value="">Todos los seniority</option>
         <option value="senior">Senior</option>
@@ -39,28 +50,30 @@ const DEVELOPERS = [
         <option value="true">Activos</option>
         <option value="false">Inactivos</option>
       </select>
-      <button class="btn-primary text-sm whitespace-nowrap">+ Nuevo desarrollador</button>
+      <button class="btn-primary text-sm whitespace-nowrap">+ Nuevo colaborador</button>
     </div>
 
     <!-- Table -->
     <div class="card overflow-hidden">
       <div class="px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-        <span class="text-sm font-bold text-gray-700">Desarrolladores</span>
-        <span class="text-xs text-gray-400">Mostrando {{ filtered().length }} de {{ devs.length }}</span>
+        <span class="text-sm font-bold text-gray-700">Colaboradores</span>
+        <span class="text-xs text-gray-400">Mostrando {{ filtered.length }} de {{ devs.length }}</span>
       </div>
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
           <tr>
-            <th class="px-4 py-2.5 text-left">Desarrollador</th>
+            <th class="px-4 py-2.5 text-left">Colaborador</th>
+            <th class="px-4 py-2.5 text-left">Rol</th>
             <th class="px-4 py-2.5 text-left">Seniority</th>
             <th class="px-4 py-2.5 text-left">Tecnologias</th>
             <th class="px-4 py-2.5 text-left">Disponibilidad</th>
+            <th class="px-4 py-2.5 text-right">Costo / hora</th>
             <th class="px-4 py-2.5 text-left">Estado</th>
             <th class="px-4 py-2.5 text-left">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          @for (dev of filtered(); track dev.id) {
+          @for (dev of filtered; track dev.id) {
             <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors" [class.opacity-50]="!dev.activo">
               <td class="px-4 py-3">
                 <div class="flex items-center gap-2.5">
@@ -73,6 +86,12 @@ const DEVELOPERS = [
                     <p class="text-xs text-gray-400">{{ dev.email }}</p>
                   </div>
                 </div>
+              </td>
+              <td class="px-4 py-3">
+                <span class="text-xs font-semibold px-2 py-0.5 rounded" [class]="rolBadge(dev.rol)">{{ rolInfo(dev.rol).label }}</span>
+                <p class="text-[10px] mt-1" [class]="dev.rol === 'dev' ? 'text-brand font-semibold' : 'text-gray-400'">
+                  {{ dev.rol === 'dev' ? 'End-to-end' : 'Apoyo' }}
+                </p>
               </td>
               <td class="px-4 py-3">
                 <span [class]="getSeniorityBadge(dev.seniority)">{{ dev.seniority }}</span>
@@ -97,6 +116,10 @@ const DEVELOPERS = [
                        [style.width]="dev.disponibilidad_pct + '%'"></div>
                 </div>
               </td>
+              <td class="px-4 py-3 text-right">
+                <p class="font-bold text-navy">S/ {{ dev.costo_hora | number:'1.2-2' }}</p>
+                <p class="text-[10px] text-gray-400">≈ S/ {{ dev.costo_hora * 160 | number:'1.0-0' }} / mes</p>
+              </td>
               <td class="px-4 py-3">
                 <button (click)="toggleActivo(dev)"
                   class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
@@ -120,21 +143,33 @@ const DEVELOPERS = [
   `
 })
 export class CatalogComponent {
-  devs = DEVELOPERS.map(d => ({ ...d }));
+  devs = COLABORADORES.map(d => ({ ...d }));
+  roles = ROLES;
+  rolBadge = rolBadge;
+  rolInfo = rolInfo;
   search = '';
+  filterRol: Rol | '' = '';
   filterSeniority = '';
   filterStatus = '';
 
-  filtered = computed(() => {
+  get filtered() {
     return this.devs.filter(d => {
       const matchSearch = !this.search ||
         d.nombre.toLowerCase().includes(this.search.toLowerCase()) ||
         d.email.toLowerCase().includes(this.search.toLowerCase());
       const matchSeniority = !this.filterSeniority || d.seniority === this.filterSeniority;
       const matchStatus = !this.filterStatus || d.activo.toString() === this.filterStatus;
-      return matchSearch && matchSeniority && matchStatus;
+      const matchRol = !this.filterRol || d.rol === this.filterRol;
+      return matchSearch && matchSeniority && matchStatus && matchRol;
     });
-  });
+  }
+
+  countRol(rol: Rol) { return this.devs.filter(d => d.rol === rol).length; }
+
+  promedioRol(rol: Rol) {
+    const c = this.devs.filter(d => d.rol === rol).map(d => d.costo_hora);
+    return c.length ? c.reduce((a, b) => a + b, 0) / c.length : 0;
+  }
 
   toggleActivo(dev: any) { dev.activo = !dev.activo; }
 
@@ -143,7 +178,7 @@ export class CatalogComponent {
   }
 
   getColor(id: number): string {
-    const colors = ['#1A5FAD','#059669','#7C3AED','#D97706','#DC2626','#0891B2','#7C3AED','#059669','#6B7280','#9CA3AF'];
+    const colors = ['#1A5FAD','#059669','#7C3AED','#D97706','#DC2626','#0891B2','#7C3AED','#059669','#6B7280','#9CA3AF','#9333EA','#0E7490','#B45309','#0891B2','#2563EB','#DC2626','#BE185D'];
     return colors[(id - 1) % colors.length];
   }
 

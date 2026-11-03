@@ -2,19 +2,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-
-const ALL_DEVS = [
-  { id:1, nombre:"Ana Quispe", seniority:"senior", tecnologias:["react","node","postgresql","docker","typescript"], disponibilidad_pct:90, experiencia: 6, email:"a.quispe@consultora.pe", proyectos:["Portal E-comm Lima Moda","API Gateway Fintech","Dashboard Analytics"] },
-  { id:2, nombre:"Carlos Mendoza", seniority:"mid", tecnologias:["node","postgresql","rest","express"], disponibilidad_pct:100, experiencia: 3, email:"c.mendoza@consultora.pe", proyectos:["API Inventario QROMA","Microservicio Notif."] },
-  { id:3, nombre:"Lucia Torres", seniority:"mid", tecnologias:["react","typescript","tailwind","vue"], disponibilidad_pct:75, experiencia: 3, email:"l.torres@consultora.pe", proyectos:["Catalogo QROMA","Dashboard KPIs"] },
-  { id:4, nombre:"Jorge Ramos", seniority:"senior", tecnologias:["fastapi","python","docker","postgresql","shap"], disponibilidad_pct:60, experiencia: 7, email:"j.ramos@consultora.pe", proyectos:["Motor Scoring ELDO","API Optimizacion Rutas","ML Pipeline EstimaIA"] },
-  { id:5, nombre:"Maria Paz Flores", seniority:"junior", tecnologias:["react","javascript","html","css"], disponibilidad_pct:100, experiencia: 1, email:"m.paz@consultora.pe", proyectos:["App Fuerza Ventas"] },
-  { id:6, nombre:"Diego Paredes", seniority:"mid", tecnologias:["angular","typescript","net"], disponibilidad_pct:80, experiencia: 4, email:"d.paredes@consultora.pe", proyectos:["Portal Distribuidores QROMA"] },
-  { id:7, nombre:"Valeria Rios", seniority:"senior", tecnologias:["react_native","react","firebase"], disponibilidad_pct:70, experiencia: 5, email:"v.rios@consultora.pe", proyectos:["App Movil ELDO","App Repartidor LOGIPAQ"] },
-  { id:8, nombre:"Andres Castillo", seniority:"mid", tecnologias:["node","fastapi","python","docker"], disponibilidad_pct:90, experiencia: 4, email:"a.castillo@consultora.pe", proyectos:["Microservicio Facturacion","API Integracion SAP"] },
-  { id:9, nombre:"Camila Vega", seniority:"junior", tecnologias:["vue","javascript","node"], disponibilidad_pct:100, experiencia: 2, email:"c.vega@consultora.pe", proyectos:["Portal Laboratorio NEXO"] },
-  { id:10, nombre:"Roberto Salas", seniority:"senior", tecnologias:["angular","java","spring","postgresql"], disponibilidad_pct:50, experiencia: 8, email:"r.salas@consultora.pe", proyectos:["HCE NEXO SALUD","Sistema Pedidos QROMA"] },
-];
+import { COLABORADORES, rolInfo } from '../../core/data/colaboradores';
 
 @Component({
   selector: 'app-profile',
@@ -35,7 +23,8 @@ const ALL_DEVS = [
             </div>
             <div>
               <p class="text-white font-bold text-lg">{{ dev.nombre }}</p>
-              <p class="text-white/70 text-sm">Full-stack Developer</p>
+              <p class="text-white/70 text-sm">{{ rolInfo(dev.rol).titulo }}
+                <span class="text-white/50">· {{ dev.rol === 'dev' ? 'End-to-end' : 'Apoyo' }}</span></p>
               <p class="text-white/50 text-xs mt-0.5">{{ dev.email }}</p>
               <span class="mt-2 inline-block bg-gold text-navy text-xs font-bold px-3 py-0.5 rounded-full">
                 {{ dev.seniority }} - {{ dev.experiencia }} años exp.
@@ -44,7 +33,7 @@ const ALL_DEVS = [
           </div>
 
           <!-- Stats -->
-          <div class="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+          <div class="grid grid-cols-4 divide-x divide-gray-100 border-t border-gray-100">
             <div class="p-4 text-center">
               <p class="text-2xl font-bold text-emerald-600">{{ dev.disponibilidad_pct }}%</p>
               <p class="text-xs text-gray-400 mt-0.5">Disponibilidad</p>
@@ -57,7 +46,12 @@ const ALL_DEVS = [
               <p class="text-2xl font-bold text-brand">{{ dev.tecnologias.length }}</p>
               <p class="text-xs text-gray-400 mt-0.5">Tecnologias</p>
             </div>
+            <div class="p-4 text-center">
+              <p class="text-2xl font-bold text-gold">S/ {{ dev.costo_hora }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">Costo por hora</p>
+            </div>
           </div>
+          <p class="px-5 py-3 border-t border-gray-100 text-xs text-gray-500">{{ rolInfo(dev.rol).descripcion }}</p>
         </div>
 
         <!-- Competencias -->
@@ -85,7 +79,7 @@ const ALL_DEVS = [
           @for (p of dev.proyectos; track p) {
             <div class="py-2.5 border-b border-gray-50 last:border-0">
               <p class="text-sm font-semibold text-navy">{{ p }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">Lead Developer - Participacion reciente</p>
+              <p class="text-xs text-gray-400 mt-0.5">{{ rolInfo(dev.rol).titulo }} - Participacion reciente</p>
             </div>
           }
         </div>
@@ -102,12 +96,13 @@ const ALL_DEVS = [
 export class ProfileComponent implements OnInit {
   dev: any = null;
   levels = [1, 2, 3];
+  rolInfo = rolInfo;
 
   constructor(private route: ActivatedRoute) {}
 
   ngOnInit() {
     const id = Number(this.route.snapshot.paramMap.get('id'));
-    this.dev = ALL_DEVS.find(d => d.id === id) || null;
+    this.dev = COLABORADORES.find(d => d.id === id) || null;
   }
 
   getInitials(nombre: string): string {

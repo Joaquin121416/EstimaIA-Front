@@ -4,7 +4,8 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { StateService } from '../../core/services/state.service';
 import { ApiService } from '../../core/services/api.service';
-import { EstimacionOutput, TeamOutput } from '../../core/models/estimate.model';
+import { DeveloperScore, EstimacionOutput, Rol, TeamOutput } from '../../core/models/estimate.model';
+import { ROLES, rolBadge } from '../../core/data/colaboradores';
 import { GanttChartComponent } from '../../shared/components/gantt-chart.component';
 
 @Component({
@@ -32,6 +33,13 @@ import { GanttChartComponent } from '../../shared/components/gantt-chart.compone
               <span class="text-xl font-normal opacity-70 ml-1">horas-hombre</span>
             </p>
             <p class="opacity-70 mt-2 text-sm">Intervalo: {{ result.esfuerzo_min }} – {{ result.esfuerzo_max }} h (± {{ result.intervalo_confianza_pct }}%)</p>
+            @if (result.costo) {
+              <p class="mt-3 text-sm">
+                <span class="opacity-60">Costo estimado:</span>
+                <span class="text-gold font-bold text-lg ml-1">S/ {{ result.costo.costo_total | number:'1.0-0' }}</span>
+                <span class="opacity-60 ml-1">(S/ {{ result.costo.costo_min | number:'1.0-0' }} – {{ result.costo.costo_max | number:'1.0-0' }})</span>
+              </p>
+            }
             <div class="mt-3 inline-block bg-white/15 rounded-full px-3 py-1 text-xs">
               🤖 Modelo: {{ result.modelo_usado }} · R² = {{ result.r2_modelo }} · MMRE = {{ result.mmre_modelo }}%
             </div>
@@ -45,6 +53,9 @@ import { GanttChartComponent } from '../../shared/components/gantt-chart.compone
           <div class="flex flex-col gap-4 text-right">
             <div><p class="text-gold font-bold text-2xl">{{ result.duracion_estimada_semanas }}</p><p class="text-xs opacity-60">semanas est.</p></div>
             <div><p class="text-gold font-bold text-2xl">{{ state.lastInput()?.tamano_equipo_previsto }}</p><p class="text-xs opacity-60">devs sugeridos</p></div>
+            @if (result.costo) {
+              <div><p class="text-gold font-bold text-2xl">S/ {{ result.costo.tarifa_promedio_hora | number:'1.2-2' }}</p><p class="text-xs opacity-60">costo prom. / hora</p></div>
+            }
           </div>
         </div>
 
@@ -116,6 +127,76 @@ import { GanttChartComponent } from '../../shared/components/gantt-chart.compone
           </div>
         }
 
+        <!-- COSTO DEL PROYECTO -->
+        @if (result.costo; as costo) {
+          <div class="card mb-5">
+            <div class="px-5 py-3 border-b border-gray-100 flex flex-wrap justify-between items-baseline gap-2">
+              <span class="font-bold text-sm text-gray-700">💰 Costo del proyecto en horas-hombre</span>
+              <span class="text-xs text-gray-500">
+                Devs <span class="font-semibold text-brand">end-to-end</span> · QA, DevOps y Seguridad como <span class="font-semibold">apoyo</span>
+              </span>
+            </div>
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr>
+                  <th class="px-4 py-2 text-left">Rol</th>
+                  <th class="px-4 py-2 text-right">Horas-hombre</th>
+                  <th class="px-4 py-2 text-left w-1/4">% del esfuerzo</th>
+                  <th class="px-4 py-2 text-right">Costo / hora</th>
+                  <th class="px-4 py-2 text-right">Costo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of costo.por_rol; track c.rol) {
+                  <tr class="border-t border-gray-50">
+                    <td class="px-4 py-2.5">
+                      <span class="text-xs font-semibold px-2 py-0.5 rounded" [class]="rolBadge(c.rol)">{{ c.rol_label }}</span>
+                      <span class="text-[10px] ml-2" [class]="c.tipo === 'end_to_end' ? 'text-brand font-semibold' : 'text-gray-400'">
+                        {{ c.tipo === 'end_to_end' ? 'End-to-end' : 'Apoyo' }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-navy">{{ c.horas | number:'1.0-0' }} h</td>
+                    <td class="px-4 py-2.5">
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-gray-100 rounded-full h-2">
+                          <div class="h-2 rounded-full" [class]="c.tipo === 'end_to_end' ? 'bg-brand' : 'bg-gray-400'" [style.width]="c.pct + '%'"></div>
+                        </div>
+                        <span class="text-xs text-gray-500 w-12 text-right">{{ c.pct }}%</span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-2.5 text-right text-gray-600">
+                      S/ {{ c.tarifa_hora | number:'1.2-2' }}
+                      @if (!c.tarifa_personalizada) { <span class="text-[10px] text-gray-400 block">prom. catálogo</span> }
+                    </td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-navy">S/ {{ c.costo | number:'1.2-2' }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot class="border-t-2 border-gray-200 bg-gray-50">
+                <tr>
+                  <td class="px-4 py-3 font-bold text-navy">Total</td>
+                  <td class="px-4 py-3 text-right font-bold text-navy">{{ result.esfuerzo_horas | number:'1.0-0' }} h</td>
+                  <td></td>
+                  <td class="px-4 py-3 text-right text-gray-600">S/ {{ costo.tarifa_promedio_hora | number:'1.2-2' }}</td>
+                  <td class="px-4 py-3 text-right font-bold text-brand text-base">S/ {{ costo.costo_total | number:'1.2-2' }}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="px-5 py-3 border-t border-gray-100 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
+              <span>Rango: <span class="font-semibold text-navy">S/ {{ costo.costo_min | number:'1.0-0' }} – S/ {{ costo.costo_max | number:'1.0-0' }}</span></span>
+              @if (state.lastInput()?.presupuesto_maximo_soles; as presupuesto) {
+                <span>Presupuesto del cliente: <span class="font-semibold text-navy">S/ {{ presupuesto | number:'1.0-0' }}</span>
+                  @if (costo.costo_total > presupuesto) {
+                    <span class="text-red-600 font-semibold ml-1">excede en S/ {{ costo.costo_total - presupuesto | number:'1.0-0' }}</span>
+                  } @else {
+                    <span class="text-emerald-600 font-semibold ml-1">holgura S/ {{ presupuesto - costo.costo_total | number:'1.0-0' }}</span>
+                  }
+                </span>
+              }
+            </div>
+          </div>
+        }
+
         <!-- GANTT -->
         @if (result.gantt) {
           <div class="card mb-5 overflow-hidden">
@@ -163,59 +244,101 @@ import { GanttChartComponent } from '../../shared/components/gantt-chart.compone
         </div>
 
         <!-- EQUIPO RECOMENDADO -->
-        @if (team()) {
+        @if (team(); as t) {
           <div class="card">
-            <div class="px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-              <span class="font-bold text-sm text-gray-700">👥 Equipo recomendado</span>
+            <div class="px-5 py-3 border-b border-gray-100 flex flex-wrap justify-between items-center gap-2">
+              <span class="font-bold text-sm text-gray-700">👥 Equipo recomendado · {{ t.num_colaboradores }} colaboradores</span>
               <div class="flex gap-4 text-sm">
-                <span class="text-emerald-600 font-semibold">Skills: {{ team()!.cobertura_skills_pct }}% ✓</span>
-                <span class="text-gray-500">Balance σ: {{ team()!.balance_carga_desv_pct }}%</span>
+                <span class="text-emerald-600 font-semibold">Skills: {{ t.cobertura_skills_pct }}% ✓</span>
+                <span class="text-gray-500">Balance devs σ: {{ t.balance_carga_desv_pct }}%</span>
               </div>
             </div>
+
+            <!-- Resumen por rol -->
+            <div class="grid grid-cols-5 divide-x divide-gray-100 border-b border-gray-100">
+              @for (r of t.por_rol; track r.rol) {
+                <div class="p-3">
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded" [class]="rolBadge(r.rol)">{{ r.rol_label }}</span>
+                  <p class="text-lg font-bold text-navy mt-1">{{ r.personas }} <span class="text-xs font-normal text-gray-400">pers. · {{ r.horas | number:'1.0-0' }} h</span></p>
+                  <p class="text-xs text-gray-500">S/ {{ r.costo | number:'1.0-0' }}</p>
+                </div>
+              }
+              <div class="p-3 bg-gray-50">
+                <p class="text-xs font-semibold text-gray-500">Costo con tarifas reales</p>
+                <p class="text-lg font-bold text-brand mt-1">S/ {{ t.costo_total | number:'1.0-0' }}</p>
+                @if (result.costo) {
+                  <p class="text-xs" [class]="t.costo_total > result.costo.costo_total ? 'text-amber-600' : 'text-emerald-600'">
+                    {{ t.costo_total > result.costo.costo_total ? '+' : '' }}{{ t.costo_total - result.costo.costo_total | number:'1.0-0' }} vs estimado
+                  </p>
+                }
+              </div>
+            </div>
+
             <table class="w-full text-sm">
               <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
                 <tr>
                   <th class="px-4 py-2 text-left">#</th>
-                  <th class="px-4 py-2 text-left">Desarrollador</th>
+                  <th class="px-4 py-2 text-left">Colaborador</th>
                   <th class="px-4 py-2 text-left">Score</th>
                   <th class="px-4 py-2 text-left">Skills</th>
-                  <th class="px-4 py-2 text-left">Disponibilidad</th>
+                  <th class="px-4 py-2 text-left">Dedicación</th>
+                  <th class="px-4 py-2 text-right">Horas</th>
+                  <th class="px-4 py-2 text-right">Costo / hora</th>
+                  <th class="px-4 py-2 text-right">Costo</th>
                   <th class="px-4 py-2 text-left">Acción</th>
                 </tr>
               </thead>
               <tbody>
-                @for (dev of team()!.equipo; track dev.id; let i = $index) {
-                  <tr class="border-t border-gray-50 hover:bg-gray-50">
-                    <td class="px-4 py-3 font-bold" [class]="i===0?'text-emerald-600':i===1?'text-brand':'text-purple-600'">{{i+1}}°</td>
-                    <td class="px-4 py-3">
-                      <p class="font-semibold text-navy">{{ dev.nombre }}</p>
-                      <span class="badge-{{ dev.seniority === 'senior' ? 'amber' : dev.seniority === 'mid' ? 'blue' : 'green' }} text-xs">
-                        {{ dev.seniority }}
+                @for (g of grupos(t.equipo); track g.rol) {
+                  <tr class="bg-gray-50/60 border-t border-gray-100">
+                    <td colspan="9" class="px-4 py-1.5 text-xs font-bold text-gray-600">
+                      {{ g.label }}
+                      <span class="font-normal" [class]="g.tipo === 'end_to_end' ? 'text-brand' : 'text-gray-400'">
+                        · {{ g.tipo === 'end_to_end' ? 'ven el proyecto end-to-end' : 'apoyo con dedicación parcial' }}
                       </span>
                     </td>
-                    <td class="px-4 py-3">
-                      <p class="font-bold text-brand text-base">{{ dev.score_total }}</p>
-                      <p class="text-xs text-gray-400">S:{{ dev.score_skills }} E:{{ dev.score_experiencia }} D:{{ dev.score_disponibilidad }}</p>
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="flex flex-wrap gap-1">
-                        @for (t of dev.tecnologias.slice(0,3); track t) {
-                          <span class="bg-blue-50 text-blue-700 text-xs px-1.5 py-0.5 rounded">{{ t }}</span>
-                        }
-                      </div>
-                    </td>
-                    <td class="px-4 py-3">
-                      <p class="font-semibold text-emerald-600">{{ dev.disponibilidad_pct }}%</p>
-                      <div class="w-16 bg-gray-100 rounded-full h-1.5 mt-1">
-                        <div class="bg-emerald-500 h-1.5 rounded-full" [style.width]="dev.disponibilidad_pct + '%'"></div>
-                      </div>
-                    </td>
-                    <td class="px-4 py-3">
-                      <a [routerLink]="['/profile', dev.id]" class="text-xs font-semibold text-brand bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">
-                        Ver perfil
-                      </a>
-                    </td>
                   </tr>
+                  @for (dev of g.miembros; track dev.id; let i = $index) {
+                    <tr class="border-t border-gray-50 hover:bg-gray-50">
+                      <td class="px-4 py-3 font-bold" [class]="i===0?'text-emerald-600':i===1?'text-brand':'text-purple-600'">{{i+1}}°</td>
+                      <td class="px-4 py-3">
+                        <p class="font-semibold text-navy">{{ dev.nombre }}</p>
+                        <span class="text-xs font-semibold px-1.5 py-0.5 rounded mr-1" [class]="rolBadge(dev.rol)">{{ g.label }}</span>
+                        <span class="badge-{{ dev.seniority === 'senior' ? 'amber' : dev.seniority === 'mid' ? 'blue' : 'green' }} text-xs">
+                          {{ dev.seniority }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <p class="font-bold text-brand text-base">{{ dev.score_total }}</p>
+                        <p class="text-xs text-gray-400">S:{{ dev.score_skills }} E:{{ dev.score_experiencia }} D:{{ dev.score_disponibilidad }}</p>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex flex-wrap gap-1">
+                          @for (tec of dev.tecnologias.slice(0,3); track tec) {
+                            <span class="bg-blue-50 text-blue-700 text-xs px-1.5 py-0.5 rounded">{{ tec }}</span>
+                          }
+                        </div>
+                      </td>
+                      <td class="px-4 py-3">
+                        <p class="font-semibold" [class]="dev.dedicacion_pct > dev.disponibilidad_pct ? 'text-red-600' : 'text-emerald-600'">
+                          {{ dev.dedicacion_pct }}%
+                          <span class="text-[10px] font-normal text-gray-400">de {{ dev.disponibilidad_pct }}% disp.</span>
+                        </p>
+                        <div class="w-20 bg-gray-100 rounded-full h-1.5 mt-1">
+                          <div class="h-1.5 rounded-full" [class]="dev.rol === 'dev' ? 'bg-emerald-500' : 'bg-gray-400'"
+                               [style.width]="(dev.dedicacion_pct > 100 ? 100 : dev.dedicacion_pct) + '%'"></div>
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-right font-semibold text-navy">{{ dev.horas_asignadas | number:'1.0-0' }} h</td>
+                      <td class="px-4 py-3 text-right text-gray-600">S/ {{ dev.costo_hora | number:'1.2-2' }}</td>
+                      <td class="px-4 py-3 text-right font-semibold text-navy">S/ {{ dev.costo | number:'1.0-0' }}</td>
+                      <td class="px-4 py-3">
+                        <a [routerLink]="['/profile', dev.id]" class="text-xs font-semibold text-brand bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">
+                          Ver perfil
+                        </a>
+                      </td>
+                    </tr>
+                  }
                 }
               </tbody>
             </table>
@@ -233,12 +356,14 @@ export class ResultsComponent implements OnInit {
   result: EstimacionOutput | null = null;
   team = signal<TeamOutput | null>(null);
   loadingTeam = signal(false);
+  rolBadge = rolBadge;
 
   constructor(public state: StateService, private api: ApiService, private router: Router) {}
 
   ngOnInit() {
     this.result = this.state.lastResult();
     if (!this.result) return;
+    this.team.set(this.state.lastTeam());
   }
 
   getTeam() {
@@ -248,11 +373,21 @@ export class ResultsComponent implements OnInit {
     this.api.assignTeam({
       esfuerzo_estimado_horas: r.esfuerzo_horas,
       tecnologia_requerida: input.tecnologia_principal,
-      duracion_semanas: r.duracion_estimada_semanas
+      duracion_semanas: r.duracion_estimada_semanas,
+      horas_por_rol: r.costo
+        ? Object.fromEntries(r.costo.por_rol.map(c => [c.rol, c.horas]))
+        : undefined
     }).subscribe({
       next: t => { this.team.set(t); this.state.lastTeam.set(t); this.loadingTeam.set(false); },
       error: () => this.loadingTeam.set(false)
     });
+  }
+
+  /** Agrupa el equipo por rol, en el orden: Desarrollo, QA, DevOps, Seguridad. */
+  grupos(equipo: DeveloperScore[]) {
+    return ROLES
+      .map(r => ({ rol: r.value as Rol, label: r.label, tipo: r.tipo, miembros: equipo.filter(d => (d.rol ?? 'dev') === r.value) }))
+      .filter(g => g.miembros.length);
   }
 
   /** Ancho de barra para un impacto en %, escala hasta ±30%. */
