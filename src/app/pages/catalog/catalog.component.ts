@@ -130,18 +130,29 @@ import { Rol } from '../../core/models/estimate.model';
               </td>
               <td class="px-4 py-3">
                 <button (click)="toggleActivo(dev)" [disabled]="guardando()"
-                  class=""relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+                  class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
                   [class]="dev.activo ? 'bg-emerald-500' : 'bg-gray-300'">
                   <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow"
                         [class]="dev.activo ? 'translate-x-4' : 'translate-x-1'"></span>
                 </button>
               </td>
               <td class="px-4 py-3">
-                <div class="flex gap-2">
-                  <a [routerLink]="['/profile', dev.id]"
-                     class="text-xs font-semibold text-brand bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">Ver</a>
-                  <button (click)="abrirEditar(dev)" class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100">Editar</button>
-                </div>
+                @if (borrandoId === dev.id) {
+                  <div class="flex gap-1 items-center">
+                    <span class="text-xs text-red-600 mr-1">¿Eliminar?</span>
+                    <button (click)="eliminar(dev)" [disabled]="guardando()"
+                      class="text-xs font-semibold text-white bg-red-500 px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50">Sí</button>
+                    <button (click)="borrandoId = null"
+                      class="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded hover:bg-gray-200">No</button>
+                  </div>
+                } @else {
+                  <div class="flex gap-2">
+                    <a [routerLink]="['/profile', dev.id]"
+                       class="text-xs font-semibold text-brand bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">Ver</a>
+                    <button (click)="abrirEditar(dev)" class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded hover:bg-amber-100">Editar</button>
+                    <button (click)="borrandoId = dev.id" class="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded hover:bg-red-100">Borrar</button>
+                  </div>
+                }
               </td>
             </tr>
           }
@@ -256,6 +267,7 @@ export class CatalogComponent implements OnInit {
   // Formulario del modal (null = cerrado)
   form: ColaboradorInput | null = null;
   editandoId: number | null = null;
+  borrandoId: number | null = null;   // fila que muestra "¿Eliminar? Si / No"
   tecnologiasTexto = '';
   proyectosTexto = '';
 
@@ -294,6 +306,23 @@ export class CatalogComponent implements OnInit {
     this.api.toggleActivo(dev.id).subscribe({
       next: upd => { this.reemplazar(upd); this.guardando.set(false); },
       error: err => { this.guardando.set(false); this.error.set(this.mensaje(err, 'No se pudo cambiar el estado')); }
+    });
+  }
+
+  eliminar(dev: Colaborador) {
+    this.guardando.set(true);
+    this.error.set('');
+    this.api.delete(dev.id).subscribe({
+      next: () => {
+        this.devs = this.devs.filter(d => d.id !== dev.id);
+        this.borrandoId = null;
+        this.guardando.set(false);
+      },
+      error: err => {
+        this.guardando.set(false);
+        this.borrandoId = null;
+        this.error.set(this.mensaje(err, 'No se pudo eliminar'));
+      }
     });
   }
 

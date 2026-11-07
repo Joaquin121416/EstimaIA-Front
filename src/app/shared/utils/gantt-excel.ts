@@ -5,14 +5,22 @@
 // mas una hoja "Datos" con la tabla plana. No usa librerias externas: un .xlsx es
 // un ZIP con archivos XML, y aqui se arma directamente.
 
-import type { GanttOutput, GanttTarea } from '../../core/models/estimate.model';
+import type { CostoProyecto, DeveloperScore, GanttOutput, GanttTarea } from '../../core/models/estimate.model';
 
 // ---------------------------------------------------------------- Configuracion
 
 export interface OpcionesExcelGantt {
   proyecto?: string;
   resaltarCritica?: boolean;
+  /** Si viene, se agrega la hoja "Costos" con el cuadro de costos del desarrollo. */
+  costo?: CostoProyecto | null;
+  /** Equipo recomendado (opcional): agrega el detalle por integrante en "Costos". */
+  equipo?: DeveloperScore[] | null;
+  /** Presupuesto maximo del cliente (S/.), para comparar con el total. */
+  presupuesto?: number | null;
 }
+
+export const PCT_IGV = 0.18;
 
 const ORDEN_FASES = ['Gestion', 'Inicio', 'Analisis', 'Diseno', 'Desarrollo', 'Pruebas', 'Despliegue', 'Cierre'];
 
@@ -50,6 +58,9 @@ interface Estilo {
   l?: Borde; r?: Borde; t?: Borde; bt?: Borde;
   h?: 'left' | 'center' | 'right'; v?: 'top' | 'center' | 'bottom'; indent?: number; wrap?: boolean;
   fecha?: boolean;
+  moneda?: boolean;   // "S/ "#,##0.00
+  decimal?: boolean;  // #,##0.0
+  pct?: boolean;      // 0.0%
 }
 
 class Estilos {
@@ -76,7 +87,7 @@ class Estilos {
     const fontId = this.agregar(this.fonts, font);
     const fillId = this.agregar(this.fills, fill);
     const borderId = this.agregar(this.borders, border);
-    const numFmt = e.fecha ? 164 : 0;
+    const numFmt = e.fecha ? 164 : e.moneda ? 165 : e.decimal ? 166 : e.pct ? 167 : 0;
     const alin = (e.h || e.v || e.indent || e.wrap)
       ? `<alignment${e.h ? ` horizontal="${e.h}"` : ''} vertical="${e.v ?? 'center'}"` +
         `${e.indent ? ` indent="${e.indent}"` : ''}${e.wrap ? ' wrapText="1"' : ''}/>`
@@ -100,7 +111,7 @@ class Estilos {
   xml() {
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>
+<numFmts count="4"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="&quot;S/ &quot;#,##0.00"/><numFmt numFmtId="166" formatCode="#,##0.0"/><numFmt numFmtId="167" formatCode="0.0%"/></numFmts>
 <fonts count="${this.fonts.length}">${this.fonts.join('')}</fonts>
 <fills count="${this.fills.length}">${this.fills.join('')}</fills>
 <borders count="${this.borders.length}">${this.borders.join('')}</borders>
@@ -113,7 +124,8 @@ class Estilos {
 
 // ---------------------------------------------------------------- Hoja
 
-type Valor = string | number | null;
+/** Valor de celda; `{ f }` es una formula de Excel sin el signo = (ej: { f: 'SUM(D5:D8)' }). */
+type Valor = string | number | null | { f: string };
 interface Celda { v: Valor; s: number }
 
 class Hoja {
@@ -158,6 +170,7 @@ class Hoja {
       const cs = celdas.map(([c, { v, s }]) => {
         const r1 = ref(r, c);
         if (v === null || v === '') return `<c r="${r1}" s="${s}"/>`;
+        if (typeof v === 'object') return `<c r="${r1}" s="${s}"><f>${esc(v.f)}</f></c>`;
         if (typeof v === 'number') return `<c r="${r1}" s="${s}"><v>${v}</v></c>`;
         return `<c r="${r1}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${esc(v)}</t></is></c>`;
       }).join('');
@@ -424,7 +437,10 @@ export function generarExcelGantt(gantt: GanttOutput, op: OpcionesExcelGantt = {
   d2.autoFiltro = `A1:${ref(gantt.tareas.length + 1, enc.length)}`;
 
   // ===== Empaquetado
-  const hojas = ['Cronograma', 'Datos'];
+  // ===== Hoja 3: Costos (solo si la estimacion trae costo)
+  const d3 = op.costo ? hojaCostos(st, op) : null;
+
+  const hojas = d3 ? ['Cronograma', 'Datos', 'Costos'] : ['Cronograma', 'Datos'];
   const archivos: [string, string][] = [
     ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -451,6 +467,7 @@ ${hojas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openx
 </Relationships>`],
     ['xl/worksheets/sheet1.xml', h.xml()],
     ['xl/worksheets/sheet2.xml', d2.xml()],
+    ...(d3 ? [['xl/worksheets/sheet3.xml', d3.xml()] as [string, string]] : []),
     ['xl/styles.xml', st.xml()],
   ];
   return zip(archivos);
@@ -465,10 +482,109 @@ export function descargarExcelGantt(gantt: GanttOutput, op: OpcionesExcelGantt =
   a.href = url;
   const slug = (op.proyecto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
-  a.download = `cronograma-gantt${slug ? '-' + slug : ''}.xlsx`;
+  a.download = `${op.costo ? 'estimacion' : 'cronograma-gantt'}${slug ? '-' + slug : ''}.xlsx`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+// ---------------------------------------------------------------- Hoja de costos
+
+/**
+ * Cuadro de costos del desarrollo. Usa formulas para que el usuario pueda
+ * cambiar horas o tarifas en Excel y los totales se recalculen.
+ *  - Bloque 1: costo por rol (mismo calculo que la web: horas x costo/hora).
+ *  - Bloque 2: detalle por integrante del equipo recomendado (si se pidio).
+ *  - Resumen: subtotal, IGV 18% y total con IGV; rango y presupuesto.
+ */
+function hojaCostos(st: Estilos, op: OpcionesExcelGantt): Hoja {
+  const costo = op.costo!;
+  const h = new Hoja();
+  h.anchos = [30, 14, 12, 10, 16, 18];
+  const linea: Borde = { estilo: 'thin', color: C.gris200 };
+  const caja: Estilo = { l: linea, r: linea, t: linea, bt: linea };
+  const titulo = st.id({ b: true, sz: 15, color: C.navy });
+  const sub = st.id({ sz: 10, color: C.gris500 });
+  const seccion = st.id({ b: true, sz: 11, color: C.navy });
+  const cab = st.id({ b: true, sz: 10, color: C.blanco, fill: C.navy, h: 'center', ...caja });
+  const txt = st.id({ ...caja });
+  const txtC = st.id({ ...caja, h: 'center' });
+  const num = st.id({ ...caja, decimal: true, h: 'right' });
+  const pct = st.id({ ...caja, pct: true, h: 'right' });
+  const mon = st.id({ ...caja, moneda: true, h: 'right' });
+  const etq = st.id({ b: true, h: 'right' });
+  const etqN = st.id({ h: 'right', color: C.gris500 });
+  const monT = st.id({ ...caja, moneda: true, h: 'right', b: true });
+  const monTotal = st.id({ ...caja, moneda: true, h: 'right', b: true, sz: 12, color: C.navy, fill: 'FDF3E1' });
+  const nota = st.id({ i: true, sz: 9, color: C.gris400 });
+
+  let f = 1;
+  h.set(f, 1, 'Cuadro de costos del desarrollo', titulo); h.altura(f, 22); f++;
+  h.set(f, 1, `Proyecto: ${op.proyecto ?? ''}`, st.id({ b: true })); f++;
+  h.set(f, 1, `Generado el ${fmtLargo(new Date())} · Moneda: Soles (S/)`, sub); f += 2;
+
+  // --- Bloque 1: costo por rol
+  h.set(f, 1, 'Costo por rol', seccion); f++;
+  ['Rol', 'Participación', 'Horas', '% horas', 'Costo / hora', 'Costo'].forEach((t, i) => h.set(f, i + 1, t, cab));
+  h.altura(f, 18); f++;
+  const r1 = f;
+  for (const c of costo.por_rol) {
+    h.set(f, 1, c.rol_label, txt);
+    h.set(f, 2, c.tipo === 'end_to_end' ? 'End-to-end' : 'Apoyo', txtC);
+    h.set(f, 3, c.horas, num);
+    h.set(f, 4, { f: `IF(SUM(C${r1}:C${r1 + costo.por_rol.length - 1})=0,0,C${f}/SUM(C${r1}:C${r1 + costo.por_rol.length - 1}))` }, pct);
+    h.set(f, 5, c.tarifa_hora, mon);
+    h.set(f, 6, { f: `C${f}*E${f}` }, mon);
+    f++;
+  }
+  const r2 = f - 1;
+  const fSub = f;
+  h.set(f, 2, 'Total horas', etq);
+  h.set(f, 3, { f: `SUM(C${r1}:C${r2})` }, st.id({ ...caja, decimal: true, h: 'right', b: true }));
+  h.set(f, 5, 'Subtotal', etq);
+  h.set(f, 6, { f: `SUM(F${r1}:F${r2})` }, monT); f++;
+  h.set(f, 5, `IGV (${PCT_IGV * 100}%)`, etqN);
+  h.set(f, 6, { f: `F${fSub}*${PCT_IGV}` }, mon); f++;
+  h.set(f, 5, 'TOTAL con IGV', etq);
+  h.set(f, 6, { f: `F${fSub}+F${fSub + 1}` }, monTotal); h.altura(f, 20); f++;
+  h.set(f, 5, 'Costo / hora promedio', etqN);
+  h.set(f, 6, { f: `IF(C${fSub}=0,0,F${fSub}/C${fSub})` }, mon); f++;
+  h.set(f, 5, 'Rango (sin IGV)', etqN);
+  h.set(f, 6, `S/ ${Math.round(costo.costo_min).toLocaleString('es-PE')} – S/ ${Math.round(costo.costo_max).toLocaleString('es-PE')}`, st.id({ ...caja, h: 'right' })); f++;
+  if (op.presupuesto) {
+    h.set(f, 5, 'Presupuesto del cliente', etqN);
+    h.set(f, 6, op.presupuesto, mon); f++;
+    h.set(f, 5, 'Holgura (+) / exceso (−) vs subtotal', etqN);
+    h.set(f, 6, { f: `F${f - 1}-F${fSub}` }, mon); f++;
+  }
+  f++;
+
+  // --- Bloque 2: detalle por integrante
+  const equipo = op.equipo ?? [];
+  if (equipo.length) {
+    h.set(f, 1, 'Equipo recomendado', seccion); f++;
+    ['Integrante', 'Rol', 'Seniority', 'Horas', 'Costo / hora', 'Costo'].forEach((t, i) => h.set(f, i + 1, t, cab));
+    h.altura(f, 18); f++;
+    const e1 = f;
+    for (const d of equipo) {
+      h.set(f, 1, d.nombre, txt);
+      h.set(f, 2, ROL_LABEL_XLS[d.rol] ?? d.rol, txtC);
+      h.set(f, 3, d.seniority, txtC);
+      h.set(f, 4, d.horas_asignadas, num);
+      h.set(f, 5, d.costo_hora, mon);
+      h.set(f, 6, { f: `D${f}*E${f}` }, mon);
+      f++;
+    }
+    h.set(f, 3, 'Total', etq);
+    h.set(f, 4, { f: `SUM(D${e1}:D${f - 1})` }, st.id({ ...caja, decimal: true, h: 'right', b: true }));
+    h.set(f, 6, { f: `SUM(F${e1}:F${f - 1})` }, monT); f += 2;
+  }
+
+  h.set(f, 1, 'Devs llevan el proyecto end-to-end; QA, DevOps y Seguridad solo cuentan sus tareas de apoyo del cronograma.', nota); f++;
+  h.set(f, 1, 'Horas, costo por hora y totales son fórmulas: puedes cambiarlos y el cuadro se recalcula.', nota);
+  return h;
+}
+
+const ROL_LABEL_XLS: Record<string, string> = { dev: 'Desarrollo', qa: 'QA', devops: 'DevOps', seguridad: 'Seguridad' };
 
 // ---------------------------------------------------------------- Utilidades
 

@@ -324,6 +324,7 @@ export class EstimateComponent implements OnInit {
         this.state.lastInput.set(payload);
         this.state.lastResult.set(result);
         this.state.lastTeam.set(null);   // el equipo anterior era de otro proyecto
+        this.state.savedId.set(null);    // la nueva estimacion aun no esta guardada
         this.loading.set(false);
         this.router.navigate(['/results']);
       },

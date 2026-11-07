@@ -188,6 +188,21 @@ export interface TeamOutput {
   balance_carga_desv_pct: number;
 }
 
+// ---- Confirmacion de la estimacion ----
+export interface EquipoConfirmado {
+  id?: number;
+  nombre: string;
+  rol?: string;
+  seniority?: string;
+  horas_asignadas: number;
+  costo_hora: number;
+  costo: number;
+}
+
+export interface ConfirmarEstimacionInput extends ProjectInput {
+  equipo: EquipoConfirmado[];
+}
+
 export interface HealthResponse {
   status: string;
   modelo: string;

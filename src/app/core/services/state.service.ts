@@ -7,4 +7,6 @@ export class StateService {
   lastInput  = signal<ProjectInput | null>(null);
   lastResult = signal<EstimacionOutput | null>(null);
   lastTeam   = signal<TeamOutput | null>(null);
+  /** id en BD de la estimacion actual, una vez que el PM la confirma */
+  savedId    = signal<number | null>(null);
 }

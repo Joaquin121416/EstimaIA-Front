@@ -4,7 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   ProjectInput, EstimacionOutput,
-  TeamInput, TeamOutput, HealthResponse
+  TeamInput, TeamOutput, HealthResponse, ConfirmarEstimacionInput
 } from '../models/estimate.model';
 
 @Injectable({ providedIn: 'root' })
@@ -19,6 +19,11 @@ export class ApiService {
 
   estimate(payload: ProjectInput): Observable<EstimacionOutput> {
     return this.http.post<EstimacionOutput>(`${this.base}/api/v1/estimate`, payload);
+  }
+
+  /** Guarda en BD la estimacion que el PM confirmo (recalcula en el servidor). */
+  confirmEstimate(payload: ConfirmarEstimacionInput): Observable<EstimacionOutput> {
+    return this.http.post<EstimacionOutput>(`${this.base}/api/v1/estimate/confirmar`, payload);
   }
 
   assignTeam(payload: TeamInput): Observable<TeamOutput> {

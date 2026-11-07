@@ -31,6 +31,10 @@ export class ColaboradoresService {
     return this.http.patch<Colaborador>(`${this.base}/${id}/activo`, {});
   }
 
+  delete(id: number): Observable<{ ok: boolean; id: number }> {
+    return this.http.delete<{ ok: boolean; id: number }>(`${this.base}/${id}`);
+  }
+
   /** Costo por hora promedio de cada rol (colaboradores activos). */
   tarifasPromedio(): Observable<Record<Rol, number>> {
     return this.http.get<Record<Rol, number>>(`${this.base}/tarifas-promedio`);

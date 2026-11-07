@@ -7,6 +7,7 @@ import { ApiService } from '../../core/services/api.service';
 import { DeveloperScore, EstimacionOutput, Rol, TeamOutput } from '../../core/models/estimate.model';
 import { ROLES, rolBadge } from '../../core/data/colaboradores';
 import { GanttChartComponent } from '../../shared/components/gantt-chart.component';
+import { descargarExcelGantt } from '../../shared/utils/gantt-excel';
 
 @Component({
   selector: 'app-results',
@@ -43,12 +44,34 @@ import { GanttChartComponent } from '../../shared/components/gantt-chart.compone
             <div class="mt-3 inline-block bg-white/15 rounded-full px-3 py-1 text-xs">
               🤖 Modelo: {{ result.modelo_usado }} · R² = {{ result.r2_modelo }} · MMRE = {{ result.mmre_modelo }}%
             </div>
-            <div class="flex gap-3 mt-4">
+            <div class="flex flex-wrap gap-3 mt-4">
               <button (click)="getTeam()" [disabled]="loadingTeam()"
                 class="bg-white text-brand font-semibold text-sm px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50">
                 {{ loadingTeam() ? '⏳ Cargando...' : '👥 Ver equipo recomendado' }}
               </button>
+              @if (state.savedId()) {
+                <span class="bg-emerald-500 text-white font-semibold text-sm px-4 py-2 rounded-lg">
+                  ✓ Estimación guardada (#{{ state.savedId() }})
+                </span>
+              } @else {
+                <button (click)="confirmar()" [disabled]="saving()"
+                  class="bg-gold text-navy font-semibold text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+                  {{ saving() ? '⏳ Guardando...' : '💾 Confirmar y guardar estimación' }}
+                </button>
+              }
+              @if (result.gantt) {
+                <button (click)="descargarExcel()"
+                  class="bg-white/15 text-white font-semibold text-sm px-4 py-2 rounded-lg hover:bg-white/25 transition-colors">
+                  📥 Descargar Excel
+                </button>
+              }
             </div>
+            @if (saveError()) {
+              <p class="mt-2 text-xs text-red-200">⚠ {{ saveError() }}</p>
+            }
+            @if (!state.savedId()) {
+              <p class="mt-2 text-[11px] opacity-60">La estimación aún no está guardada. Revísala y presiona "Confirmar y guardar".</p>
+            }
           </div>
           <div class="flex flex-col gap-4 text-right">
             <div><p class="text-gold font-bold text-2xl">{{ result.duracion_estimada_semanas }}</p><p class="text-xs opacity-60">semanas est.</p></div>
@@ -201,7 +224,9 @@ import { GanttChartComponent } from '../../shared/components/gantt-chart.compone
         @if (result.gantt) {
           <div class="card mb-5 overflow-hidden">
             <div class="px-5 py-3 border-b border-gray-100 font-bold text-sm text-gray-700">📅 Cronograma del proyecto (Gantt)</div>
-            <app-gantt-chart [gantt]="result.gantt" [proyecto]="state.lastInput()?.nombre" />
+            <app-gantt-chart [gantt]="result.gantt" [proyecto]="state.lastInput()?.nombre"
+                             [costo]="result.costo" [equipo]="team()?.equipo"
+                             [presupuesto]="state.lastInput()?.presupuesto_maximo_soles" />
           </div>
         }
 
@@ -357,6 +382,8 @@ export class ResultsComponent implements OnInit {
   team = signal<TeamOutput | null>(null);
   loadingTeam = signal(false);
   rolBadge = rolBadge;
+  saving = signal(false);
+  saveError = signal('');
 
   constructor(public state: StateService, private api: ApiService, private router: Router) {}
 
@@ -380,6 +407,38 @@ export class ResultsComponent implements OnInit {
     }).subscribe({
       next: t => { this.team.set(t); this.state.lastTeam.set(t); this.loadingTeam.set(false); },
       error: () => this.loadingTeam.set(false)
+    });
+  }
+
+  /** Guarda en BD la estimacion actual (el back recalcula y la persiste). */
+  confirmar() {
+    const input = this.state.lastInput();
+    if (!input || this.saving()) return;
+    const equipo = (this.team()?.equipo ?? []).map(d => ({
+      id: d.id, nombre: d.nombre, rol: d.rol, seniority: d.seniority,
+      horas_asignadas: d.horas_asignadas, costo_hora: d.costo_hora, costo: d.costo,
+    }));
+    this.saving.set(true);
+    this.saveError.set('');
+    this.api.confirmEstimate({ ...input, equipo }).subscribe({
+      next: r => { this.state.savedId.set(r.proyecto_id ?? null); this.saving.set(false); },
+      error: err => {
+        this.saving.set(false);
+        const det = err?.error?.detail;
+        this.saveError.set(typeof det === 'string' ? det : 'No se pudo guardar la estimación. Intenta de nuevo.');
+      }
+    });
+  }
+
+  /** Excel con cronograma, datos y cuadro de costos (incluye el equipo si ya se pidio). */
+  descargarExcel() {
+    const r = this.result;
+    if (!r?.gantt) return;
+    descargarExcelGantt(r.gantt, {
+      proyecto: this.state.lastInput()?.nombre,
+      costo: r.costo,
+      equipo: this.team()?.equipo,
+      presupuesto: this.state.lastInput()?.presupuesto_maximo_soles,
     });
   }
 

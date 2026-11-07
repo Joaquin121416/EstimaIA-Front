@@ -1,7 +1,7 @@
 // src/app/shared/components/gantt-chart.component.ts
 import { Component, Input, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GanttOutput, GanttTarea } from '../../core/models/estimate.model';
+import { CostoProyecto, DeveloperScore, GanttOutput, GanttTarea } from '../../core/models/estimate.model';
 import { descargarExcelGantt } from '../utils/gantt-excel';
 
 interface FilaFase {
@@ -161,6 +161,10 @@ export class GanttChartComponent implements OnChanges {
   @Input({ required: true }) gantt!: GanttOutput;
   /** Nombre del proyecto, se usa en el titulo y el nombre del Excel. */
   @Input() proyecto?: string;
+  /** Si vienen, el Excel incluye tambien la hoja "Costos". */
+  @Input() costo?: CostoProyecto | null;
+  @Input() equipo?: DeveloperScore[] | null;
+  @Input() presupuesto?: number | null;
 
   readonly ANCHO_IZQ = 460;
   zoom: 'dia' | 'semana' = 'semana';
@@ -294,7 +298,10 @@ export class GanttChartComponent implements OnChanges {
   }
 
   exportarExcel() {
-    descargarExcelGantt(this.gantt, { proyecto: this.proyecto, resaltarCritica: this.resaltarCritica });
+    descargarExcelGantt(this.gantt, {
+      proyecto: this.proyecto, resaltarCritica: this.resaltarCritica,
+      costo: this.costo, equipo: this.equipo, presupuesto: this.presupuesto,
+    });
   }
 
   exportarCsv() {
